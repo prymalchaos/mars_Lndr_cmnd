@@ -211,12 +211,6 @@
       font-weight: 600;
     }
 
-    button.danger {
-      background: #2b1219;
-      color: #ffcdd2;
-      border-color: #ff8a80;
-    }
-
     button:disabled {
       opacity: 0.45;
       cursor: default;
@@ -575,7 +569,7 @@
           • Vertical speed: + = up, − = down.<br />
           • 10% thrust ≈ hover at initial mass.<br />
           • Chute: huge vertical drag; usable only in a mid-altitude
-            “safe window”.<br />
+          “safe window”.<br />
           • Land softly and close to the flag for best scores.
         </div>
         <div class="btn-row" style="margin-top:6px;">
@@ -602,22 +596,8 @@
 
   <!-- Hidden sliders used internally for values -->
   <div style="display:none;">
-    <input
-      id="thrustSlider"
-      type="range"
-      min="0"
-      max="100"
-      step="1"
-      value="0"
-    />
-    <input
-      id="tiltSlider"
-      type="range"
-      min="-25"
-      max="25"
-      step="1"
-      value="0"
-    />
+    <input id="thrustSlider" type="range" min="0" max="100" step="1" value="0" />
+    <input id="tiltSlider" type="range" min="-25" max="25" step="1" value="0" />
   </div>
 
   <!-- Overlay for landing report + name entry -->
@@ -630,77 +610,64 @@
   </div>
 
   <script>
-    (() => {
-      // ========== SUPABASE CONFIG ==========
-      const SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
-      const SUPABASE_KEY =
+    // All code is in a plain function called on window load to avoid weird early DOM issues.
+    window.addEventListener("load", function () {
+      // ---------- SUPABASE CONFIG ----------
+      var SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
+      var SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16dmdnc2hibWxtdHh4ZG96eGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMzExNzMsImV4cCI6MjA4MDkwNzE3M30.QUFkj9WoW_fWjFI0EDHQbOKT2EZSpVmiAC-OZuWWgxA";
-      const SUPABASE_TABLE = "scores";
+      var SUPABASE_TABLE = "scores";
 
-      async function submitScore(entry) {
-        try {
-          await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: SUPABASE_KEY,
-              Authorization: `Bearer ${SUPABASE_KEY}`,
-              Prefer: "return=minimal",
-            },
-            body: JSON.stringify({
-              name: entry.name,
-              score: entry.score,
-              distance_km: entry.distanceKm,
-              time_sec: entry.timeSec,
-              fuel_used_pct: entry.fuelUsedPct,
-              mode: entry.mode,
-            }),
-          });
-        } catch (err) {
-          console.error("Failed to submit score:", err);
-        }
-      }
+      // ---------- DOM REFS ----------
+      var altitudeEl   = document.getElementById("altitude");
+      var rangeEl      = document.getElementById("range");
+      var distanceLZEl = document.getElementById("distanceLZ");
+      var vSpeedEl     = document.getElementById("vSpeed");
+      var hSpeedEl     = document.getElementById("hSpeed");
+      var vSpeedBarEl  = document.getElementById("vSpeedBar");
+      var fuelPctEl    = document.getElementById("fuelPct");
+      var fuelBarEl    = document.getElementById("fuelBar");
+      var statusLabelEl= document.getElementById("statusLabel");
+      var statusDotEl  = document.getElementById("statusDot");
+      var missionTimeEl= document.getElementById("missionTime");
+      var warningTextEl= document.getElementById("warningText");
 
-      async function fetchLeaderboard(limit = 10) {
-        try {
-          const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=*&order=score.desc&limit=${limit}`,
-            {
-              headers: {
-                apikey: SUPABASE_KEY,
-                Authorization: `Bearer ${SUPABASE_KEY}`,
-              },
-            }
-          );
-          if (!res.ok) {
-            console.warn("Leaderboard fetch not ok:", res.status);
-            return [];
-          }
-          const rows = await res.json();
-          return rows.map((r) => ({
-            name: r.name,
-            score: r.score,
-            distanceKm: Number(r.distance_km ?? 0).toFixed(3),
-            timeSec: Number(r.time_sec ?? 0).toFixed(1),
-            fuelUsedPct: Number(r.fuel_used_pct ?? 0).toFixed(0),
-            mode: r.mode || "unknown",
-          }));
-        } catch (err) {
-          console.error("Failed to fetch leaderboard:", err);
-          return [];
-        }
-      }
+      var startBtn     = document.getElementById("startBtn");
+      var resetBtn     = document.getElementById("resetBtn");
+      var fsBtn        = document.getElementById("fsBtn");
+      var chuteBtn     = document.getElementById("chuteBtn");
 
-      async function refreshLeaderboard() {
-        leaderboardContent.textContent = "Loading leaderboard...";
-        const list = await fetchLeaderboard(10);
-        renderLeaderboard(list);
-      }
+      var modeEasyBtn   = document.getElementById("modeEasy");
+      var modeMediumBtn = document.getElementById("modeMedium");
+      var modeHardBtn   = document.getElementById("modeHard");
 
+      var leaderboardContent = document.getElementById("leaderboardContent");
+
+      var canvas = document.getElementById("vizCanvas");
+      var ctx    = canvas.getContext("2d");
+
+      var overlay      = document.getElementById("overlay");
+      var overlayTitle = document.getElementById("overlay-title");
+      var overlayBody  = document.getElementById("overlay-body");
+      var overlayClose = document.getElementById("overlay-close");
+
+      var thrustSlider     = document.getElementById("thrustSlider");
+      var tiltSlider       = document.getElementById("tiltSlider");
+      var thrustMeterFill  = document.getElementById("thrustMeterFill");
+      var thrustTextAbove  = document.getElementById("thrustTextAbove");
+      var tiltMeterFill    = document.getElementById("tiltMeterFill");
+      var tiltMeterText    = document.getElementById("tiltMeterText");
+
+      var dpadUp    = document.getElementById("dpadUp");
+      var dpadDown  = document.getElementById("dpadDown");
+      var dpadLeft  = document.getElementById("dpadLeft");
+      var dpadRight = document.getElementById("dpadRight");
+
+      // ---------- LEADERBOARD HELPERS ----------
       function difficultyLabel(mode) {
-        if (mode === "easy") return "Easy";
+        if (mode === "easy")   return "Easy";
         if (mode === "medium") return "Medium";
-        if (mode === "hard") return "Disaster Waiting to Happen";
+        if (mode === "hard")   return "Disaster Waiting to Happen";
         return mode;
       }
 
@@ -709,127 +676,142 @@
           leaderboardContent.textContent = "No successful landings yet.";
           return;
         }
-        let html = '<ol class="lb-list">';
-        list.forEach((entry) => {
-          html += `<li><strong>${entry.name}</strong> – ${entry.score} pts<br><span style="font-size:0.75rem;color:var(--muted);">${difficultyLabel(entry.mode)}, ${entry.distanceKm} km, ${entry.timeSec} s, ${entry.fuelUsedPct}% fuel</span></li>`;
-        });
+        var html = '<ol class="lb-list">';
+        for (var i = 0; i < list.length; i++) {
+          var e = list[i];
+          html += '<li><strong>' + e.name + '</strong> – ' + e.score + ' pts<br>' +
+                  '<span style="font-size:0.75rem;color:var(--muted);">' +
+                  difficultyLabel(e.mode) + ", " +
+                  e.distanceKm + " km, " +
+                  e.timeSec + " s, " +
+                  e.fuelUsedPct + "% fuel</span></li>";
+        }
         html += "</ol>";
         leaderboardContent.innerHTML = html;
       }
 
-      // === DOM refs ===
-      const altitudeEl = document.getElementById("altitude");
-      const rangeEl = document.getElementById("range");
-      const distanceLZEl = document.getElementById("distanceLZ");
-      const vSpeedEl = document.getElementById("vSpeed");
-      const hSpeedEl = document.getElementById("hSpeed");
-      const vSpeedBarEl = document.getElementById("vSpeedBar");
-      const fuelPctEl = document.getElementById("fuelPct");
-      const fuelBarEl = document.getElementById("fuelBar");
-      const statusLabelEl = document.getElementById("statusLabel");
-      const statusDotEl = document.getElementById("statusDot");
-      const missionTimeEl = document.getElementById("missionTime");
-      const warningTextEl = document.getElementById("warningText");
+      function fetchLeaderboard(limit) {
+        if (typeof limit === "undefined") limit = 10;
+        leaderboardContent.textContent = "Loading leaderboard...";
+        return fetch(
+          SUPABASE_URL + "/rest/v1/" + SUPABASE_TABLE +
+          "?select=*&order=score.desc&limit=" + limit,
+          {
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: "Bearer " + SUPABASE_KEY
+            }
+          }
+        )
+          .then(function (res) {
+            if (!res.ok) {
+              console.warn("Leaderboard fetch not ok:", res.status);
+              return [];
+            }
+            return res.json();
+          })
+          .then(function (rows) {
+            var list = [];
+            for (var i = 0; i < rows.length; i++) {
+              var r = rows[i];
+              list.push({
+                name: r.name,
+                score: r.score,
+                distanceKm: Number(r.distance_km || 0).toFixed(3),
+                timeSec: Number(r.time_sec   || 0).toFixed(1),
+                fuelUsedPct: Number(r.fuel_used_pct || 0).toFixed(0),
+                mode: r.mode || "unknown"
+              });
+            }
+            renderLeaderboard(list);
+          })
+          .catch(function (err) {
+            console.error("Failed to fetch leaderboard:", err);
+            leaderboardContent.textContent = "Leaderboard unavailable.";
+          });
+      }
 
-      const startBtn = document.getElementById("startBtn");
-      const resetBtn = document.getElementById("resetBtn");
-      const fsBtn = document.getElementById("fsBtn");
-      const chuteBtn = document.getElementById("chuteBtn");
+      function submitScore(entry) {
+        return fetch(SUPABASE_URL + "/rest/v1/" + SUPABASE_TABLE, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_KEY,
+            Authorization: "Bearer " + SUPABASE_KEY,
+            Prefer: "return=minimal"
+          },
+          body: JSON.stringify({
+            name: entry.name,
+            score: entry.score,
+            distance_km: entry.distanceKm,
+            time_sec: entry.timeSec,
+            fuel_used_pct: entry.fuelUsedPct,
+            mode: entry.mode
+          })
+        }).catch(function (err) {
+          console.error("Failed to submit score:", err);
+        });
+      }
 
-      const modeEasyBtn = document.getElementById("modeEasy");
-      const modeMediumBtn = document.getElementById("modeMedium");
-      const modeHardBtn = document.getElementById("modeHard");
-
-      const leaderboardContent = document.getElementById("leaderboardContent");
-
-      const canvas = document.getElementById("vizCanvas");
-      const ctx = canvas.getContext("2d");
-
-      const overlay = document.getElementById("overlay");
-      const overlayTitle = document.getElementById("overlay-title");
-      const overlayBody = document.getElementById("overlay-body");
-      const overlayClose = document.getElementById("overlay-close");
-
-      const thrustSlider = document.getElementById("thrustSlider");
-      const tiltSlider = document.getElementById("tiltSlider");
-
-      const thrustMeterFill = document.getElementById("thrustMeterFill");
-      const thrustTextAbove = document.getElementById("thrustTextAbove");
-      const tiltMeterFill = document.getElementById("tiltMeterFill");
-      const tiltMeterText = document.getElementById("tiltMeterText");
-
-      const dpadUp = document.getElementById("dpadUp");
-      const dpadDown = document.getElementById("dpadDown");
-      const dpadLeft = document.getElementById("dpadLeft");
-      const dpadRight = document.getElementById("dpadRight");
-
+      // ---------- CANVAS RESIZE ----------
       function resizeCanvas() {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * window.devicePixelRatio;
-        canvas.height = rect.height * window.devicePixelRatio;
-        ctx.setTransform(
-          window.devicePixelRatio,
-          0,
-          0,
-          window.devicePixelRatio,
-          0,
-          0
-        );
+        var rect = canvas.getBoundingClientRect();
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width  = rect.width  * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         initStars();
       }
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
 
-      // === Physics constants ===
-      const G = 7.5;
-      const DRY_MASS = 900;
-      const FUEL_MAX = 120;
-      const FUEL_BURN_RATE = 0.8;
-      const FUEL_UNIT_MASS = 4;
+      // ---------- PHYSICS CONSTANTS ----------
+      var G = 7.5;
+      var DRY_MASS        = 900;
+      var FUEL_MAX        = 120;
+      var FUEL_BURN_RATE  = 0.8;
+      var FUEL_UNIT_MASS  = 4;
 
-      const THRUST_ACCEL_FACTOR = 10 * G;
-      const HORIZONTAL_THRUST_FACTOR = 2.3;
+      var THRUST_ACCEL_FACTOR      = 10 * G;
+      var HORIZONTAL_THRUST_FACTOR = 2.3;
 
-      const RHO0 = 0.005;
-      const SCALE_HEIGHT = 8000;
+      var RHO0         = 0.005;
+      var SCALE_HEIGHT = 8000;
 
-      const MAX_SIM_ALT = 2000;
-      const STAR_ALT_THRESHOLD = 2000;
+      var MAX_SIM_ALT        = 2000;
+      var STAR_ALT_THRESHOLD = 2000;
 
-      const ROUND_TIME_LIMIT = 300;
+      var ROUND_TIME_LIMIT   = 300;
 
-      const difficultyPresets = {
-        easy: { safeV: 40, crashV: 60 },
+      var difficultyPresets = {
+        easy:   { safeV: 40, crashV: 60 },
         medium: { safeV: 20, crashV: 40 },
-        hard: { safeV: 3, crashV: 6 },
+        hard:   { safeV: 3,  crashV: 6  }
       };
 
-      let difficulty = "medium";
+      var difficulty = "medium";
 
       function setDifficulty(mode) {
         difficulty = mode;
-        modeEasyBtn.classList.toggle("active", mode === "easy");
+        modeEasyBtn.classList.toggle("active",   mode === "easy");
         modeMediumBtn.classList.toggle("active", mode === "medium");
-        modeHardBtn.classList.toggle("active", mode === "hard");
+        modeHardBtn.classList.toggle("active",   mode === "hard");
       }
 
-      let celebrateTime = 0;
-      let meteors = [];
-
-      // Starfield
-      let stars = [];
-      let starScroll = 0;
+      // ---------- STARFIELD ----------
+      var stars      = [];
+      var starScroll = 0;
 
       function initStars() {
-        const w = canvas.width / window.devicePixelRatio;
-        const h = canvas.height / window.devicePixelRatio;
+        var w = canvas.width / (window.devicePixelRatio || 1);
+        var h = canvas.height / (window.devicePixelRatio || 1);
         stars = [];
-        const count = 80;
-        for (let i = 0; i < count; i++) {
+        var count = 80;
+        for (var i = 0; i < count; i++) {
           stars.push({
             x: Math.random() * w,
             y: Math.random() * h,
-            depth: 0.4 + Math.random() * 1.1,
+            depth: 0.4 + Math.random() * 1.1
           });
         }
       }
@@ -840,34 +822,39 @@
       }
 
       function renderStars() {
-        const w = canvas.width / window.devicePixelRatio;
-        const h = canvas.height / window.devicePixelRatio;
+        var w = canvas.width / (window.devicePixelRatio || 1);
+        var h = canvas.height / (window.devicePixelRatio || 1);
         ctx.save();
         ctx.fillStyle = "#02030a";
         ctx.fillRect(0, 0, w, h);
 
-        for (const s of stars) {
-          const offsetY = (s.y + starScroll * s.depth) % h;
-          const y = offsetY < 0 ? offsetY + h : offsetY;
-          const size = 1 + s.depth * 1.5;
-          const alpha = 0.3 + 0.6 * s.depth;
-          ctx.fillStyle = `rgba(220,235,255,${alpha.toFixed(2)})`;
+        for (var i = 0; i < stars.length; i++) {
+          var s = stars[i];
+          var offsetY = (s.y + starScroll * s.depth) % h;
+          var y = offsetY < 0 ? offsetY + h : offsetY;
+          var size  = 1 + s.depth * 1.5;
+          var alpha = 0.3 + 0.6 * s.depth;
+          ctx.fillStyle = "rgba(220,235,255," + alpha.toFixed(2) + ")";
           ctx.fillRect(s.x, y, size, size);
         }
 
         ctx.restore();
       }
 
-      // Game state
-      let state;
-      let lastScoreData = null;
+      // ---------- STATE ----------
+      var state = null;
+      var lastScoreData = null;
+
+      function clamp(v, min, max) {
+        return v < min ? min : (v > max ? max : v);
+      }
 
       function createInitialState() {
-        const baseVx = 50;
-        const variability = 0.15;
-        const factor = 1 + (Math.random() * 2 - 1) * variability;
-        const dir = Math.random() < 0.5 ? -1 : 1;
-        const initialVx = dir * baseVx * factor;
+        var baseVx = 50;
+        var variability = 0.15;
+        var factor = 1 + (Math.random() * 2 - 1) * variability;
+        var dir    = Math.random() < 0.5 ? -1 : 1;
+        var initialVx = dir * baseVx * factor;
 
         return {
           x: -900,
@@ -883,14 +870,14 @@
           finished: false,
           crashed: false,
           predictedImpactX: null,
-          phase: "IDLE",
+          phase: "IDLE"
         };
       }
 
       function resetGame() {
         state = createInitialState();
         thrustSlider.value = "0";
-        tiltSlider.value = "0";
+        tiltSlider.value   = "0";
 
         startBtn.disabled = false;
         startBtn.textContent = "Start Mission";
@@ -903,13 +890,18 @@
         hideOverlay();
       }
 
-      resetGame();
       setDifficulty("medium");
-      refreshLeaderboard();
+      resetGame();
+      fetchLeaderboard(10);
+
+      function computeDensity(alt) {
+        if (alt <= 0) return 0;
+        return RHO0 * Math.exp(-alt / SCALE_HEIGHT);
+      }
 
       function updatePhaseLabels() {
-        let phaseLabel = "Idle";
-        let dotClass = "entry";
+        var phaseLabel = "Idle";
+        var dotClass   = "entry";
 
         if (!state.playing && !state.finished && state.time === 0) {
           phaseLabel = "Ready";
@@ -917,24 +909,24 @@
           phaseLabel = "Paused";
         } else if (state.finished && state.crashed) {
           phaseLabel = "Crash";
-          dotClass = "crashed";
+          dotClass   = "crashed";
         } else if (state.finished && !state.crashed) {
           phaseLabel = "Touchdown";
-          dotClass = "landing";
+          dotClass   = "landing";
         } else {
-          const alt = state.y;
+          var alt = state.y;
           if (alt > 1200) {
             phaseLabel = "Entry";
-            dotClass = "entry";
+            dotClass   = "entry";
           } else if (state.chuteDeployed) {
             phaseLabel = "Chute";
-            dotClass = "chute";
+            dotClass   = "chute";
           } else if (alt > 400) {
             phaseLabel = "Powered Descent";
-            dotClass = "powered";
+            dotClass   = "powered";
           } else {
             phaseLabel = "Landing";
-            dotClass = "landing";
+            dotClass   = "landing";
           }
         }
 
@@ -943,62 +935,46 @@
         statusDotEl.className = "status-dot " + dotClass;
       }
 
-      function clamp(v, min, max) {
-        return v < min ? min : v > max ? max : v;
-      }
-
-      function computeDensity(alt) {
-        if (alt <= 0) return 0;
-        return RHO0 * Math.exp(-alt / SCALE_HEIGHT);
-      }
-
       function step(dt) {
         if (!state.playing || state.finished) return;
 
         state.time += dt;
 
-        const throttlePct = parseFloat(thrustSlider.value);
-        const throttle = throttlePct / 100;
-        const tiltDeg = parseFloat(tiltSlider.value);
-        state.thetaDeg = tiltDeg;
+        var throttlePct = parseFloat(thrustSlider.value);
+        var throttle    = throttlePct / 100;
+        var tiltDeg     = parseFloat(tiltSlider.value);
+        state.thetaDeg  = tiltDeg;
 
-        const alt = state.y;
-        const vDownMag = Math.max(0, -state.vy);
+        var alt      = state.y;
+        var vDownMag = Math.max(0, -state.vy);
 
         state.chuteSafe = alt > 900 && alt < 1800 && vDownMag > 20 && vDownMag < 200;
 
-        const mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
+        var mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
 
-        const thetaRad = (state.thetaDeg * Math.PI) / 180;
-        const rho = computeDensity(alt);
-        const CdA = 2.0;
+        var thetaRad = state.thetaDeg * Math.PI / 180;
+        var rho      = computeDensity(alt);
+        var CdA      = 2.0;
 
-        const a_drag_x =
-          mass > 0
-            ? (-0.5 * rho * CdA * state.vx * Math.abs(state.vx)) / mass
-            : 0;
-        let a_drag_y =
-          mass > 0
-            ? (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass
-            : 0;
-
-        if (state.chuteDeployed && mass > 0) {
-          const chuteCdA = 18;
-          a_drag_y +=
-            (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
+        var a_drag_x = 0;
+        var a_drag_y = 0;
+        if (mass > 0) {
+          a_drag_x = (-0.5 * rho * CdA * state.vx * Math.abs(state.vx)) / mass;
+          a_drag_y = (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass;
         }
 
-        const a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
-        const a_thrust_x =
-          -THRUST_ACCEL_FACTOR *
-          throttle *
-          Math.sin(thetaRad) *
-          HORIZONTAL_THRUST_FACTOR;
+        if (state.chuteDeployed && mass > 0) {
+          var chuteCdA = 18;
+          a_drag_y += (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
+        }
 
-        const a_grav_y = -G;
+        var a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
+        var a_thrust_x = -THRUST_ACCEL_FACTOR * throttle * Math.sin(thetaRad) * HORIZONTAL_THRUST_FACTOR;
 
-        const ax = a_thrust_x + a_drag_x;
-        const ay = a_thrust_y + a_drag_y + a_grav_y;
+        var a_grav_y = -G;
+
+        var ax = a_thrust_x + a_drag_x;
+        var ay = a_thrust_y + a_drag_y + a_grav_y;
 
         state.vx += ax * dt;
         state.vy += ay * dt;
@@ -1026,133 +1002,130 @@
         }
       }
 
+      function showOverlay(title, body) {
+        overlayTitle.textContent = title;
+        overlayBody.textContent  = body;
+        overlay.style.display = "flex";
+      }
+
+      function hideOverlay() {
+        overlay.style.display = "none";
+      }
+
+      overlayClose.addEventListener("click", hideOverlay);
+      overlay.addEventListener("click", function (e) {
+        if (e.target === overlay) hideOverlay();
+      });
+
       function finishLanding(timeOut) {
         state.finished = true;
-        state.playing = false;
+        state.playing  = false;
 
-        const vy = state.vy;
-        const vx = state.vx;
-        const range = Math.abs(state.x);
-        const fuelPctRemaining = (state.fuel / FUEL_MAX) * 100;
-        const fuelUsedPct = clamp(100 - fuelPctRemaining, 0, 100);
+        var vy = state.vy;
+        var vx = state.vx;
+        var range = Math.abs(state.x);
+        var fuelPctRemaining = (state.fuel / FUEL_MAX) * 100;
+        var fuelUsedPct      = clamp(100 - fuelPctRemaining, 0, 100);
 
-        const { crashV } = difficultyPresets[difficulty];
+        var crashV = difficultyPresets[difficulty].crashV;
 
-        let crashed = timeOut;
-        let cause = timeOut ? "MISSION TIME EXPIRED" : "";
+        var crashed = timeOut;
+        var cause   = timeOut ? "MISSION TIME EXPIRED" : "";
 
         if (!timeOut) {
           if (Math.abs(vy) > crashV) {
             crashed = true;
-            cause = `Impact too hard vertically (>${crashV} m/s)`;
+            cause = "Impact too hard vertically (>" + crashV + " m/s)";
           } else if (Math.abs(vx) > crashV) {
             crashed = true;
-            cause = `Too much ground speed (>${crashV} m/s)`;
+            cause = "Too much ground speed (>" + crashV + " m/s)";
           }
         }
 
         state.crashed = crashed;
 
-        const distanceKm = range / 1000;
-        const timeSec = state.time;
+        var distanceKm = range / 1000;
+        var timeSec    = state.time;
 
         if (crashed) {
-          const title = "MISSION FAILURE";
-          const reportLines = [];
-          reportLines.push(
-            `Vertical speed: ${vy.toFixed(1)} m/s ( + = up, − = down )`
-          );
-          reportLines.push(`Ground speed: ${vx.toFixed(1)} m/s`);
-          reportLines.push(
-            `Distance from target: ${distanceKm.toFixed(3)} km`
-          );
-          reportLines.push(
-            `Fuel remaining: ${fuelPctRemaining.toFixed(0)}%`
-          );
+          var reportLines = [];
+          reportLines.push("Vertical speed: " + vy.toFixed(1) + " m/s ( + = up, − = down )");
+          reportLines.push("Ground speed: "   + vx.toFixed(1) + " m/s");
+          reportLines.push("Distance from target: " + distanceKm.toFixed(3) + " km");
+          reportLines.push("Fuel remaining: " + fuelPctRemaining.toFixed(0) + "%");
           reportLines.push("");
           reportLines.push(cause);
           reportLines.push("");
           reportLines.push("Score: 0");
 
-          showOverlay(title, reportLines.join("\n"));
-
+          showOverlay("MISSION FAILURE", reportLines.join("\n"));
           startBtn.disabled = true;
           chuteBtn.disabled = true;
           startBtn.textContent = "Start Mission";
           return;
         }
 
-        const base = 1000;
-        const distancePenalty = clamp(distanceKm * 400, 0, 600);
-        const timePenalty = clamp((timeSec - 10) * 8, 0, 400);
-        const fuelPenalty = clamp(fuelUsedPct * 1.5, 0, 300);
+        var base            = 1000;
+        var distancePenalty = clamp(distanceKm * 400, 0, 600);
+        var timePenalty     = clamp((timeSec - 10) * 8, 0, 400);
+        var fuelPenalty     = clamp(fuelUsedPct * 1.5, 0, 300);
 
-        let score = Math.round(
-          base - distancePenalty - timePenalty - fuelPenalty
-        );
+        var score = Math.round(base - distancePenalty - timePenalty - fuelPenalty);
         if (score < 0) score = 0;
 
-        let title;
-        if (score > 900) title = "PERFECT TOUCHDOWN";
+        var title;
+        if (score > 900)      title = "PERFECT TOUCHDOWN";
         else if (score > 700) title = "NOMINAL LANDING";
         else if (score > 450) title = "MARGINAL LANDING";
-        else title = "BARELY WALKING AWAY";
+        else                  title = "BARELY WALKING AWAY";
 
         lastScoreData = {
-          score,
+          score: score,
           distanceKm: distanceKm.toFixed(3),
           timeSec: timeSec.toFixed(1),
           fuelUsedPct: fuelUsedPct.toFixed(0),
-          mode: difficulty,
+          mode: difficulty
         };
 
         celebrateTime = 10;
         meteors = [];
 
         overlayTitle.textContent = title;
-        overlayBody.innerHTML = `
-<div style="margin-bottom:8px;">
-  <div>Score: <strong>${score}</strong></div>
-  <div>Distance from pin: ${lastScoreData.distanceKm} km</div>
-  <div>Mission time: ${lastScoreData.timeSec} s</div>
-  <div>Fuel used: ${lastScoreData.fuelUsedPct}%</div>
-  <div>Mode: ${difficultyLabel(lastScoreData.mode)}</div>
-</div>
-<div style="margin-top:4px;">
-  <label for="nameInput" style="font-size:0.8rem;display:block;margin-bottom:4px;">Commander name</label>
-  <input
-    id="nameInput"
-    type="text"
-    maxlength="20"
-    placeholder="Type your name"
-    style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:#f5f7ff;font-size:0.85rem;"
-  />
-  <button id="saveScoreBtn" class="primary" style="margin-top:6px;width:100%;">Save to Leaderboard</button>
-</div>
-        `.trim();
+        overlayBody.innerHTML =
+          '<div style="margin-bottom:8px;">' +
+          '<div>Score: <strong>' + score + "</strong></div>" +
+          "<div>Distance from pin: " + lastScoreData.distanceKm + " km</div>" +
+          "<div>Mission time: " + lastScoreData.timeSec + " s</div>" +
+          "<div>Fuel used: " + lastScoreData.fuelUsedPct + "%</div>" +
+          "<div>Mode: " + difficultyLabel(lastScoreData.mode) + "</div>" +
+          "</div>" +
+          '<div style="margin-top:4px;">' +
+          '<label for="nameInput" style="font-size:0.8rem;display:block;margin-bottom:4px;">Commander name</label>' +
+          '<input id="nameInput" type="text" maxlength="20" placeholder="Type your name" ' +
+          'style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:#f5f7ff;font-size:0.85rem;" />' +
+          '<button id="saveScoreBtn" class="primary" style="margin-top:6px;width:100%;">Save to Leaderboard</button>' +
+          "</div>";
+
         overlay.style.display = "flex";
 
-        const saveBtn = document.getElementById("saveScoreBtn");
-        const nameInput = document.getElementById("nameInput");
+        var saveBtn   = document.getElementById("saveScoreBtn");
+        var nameInput = document.getElementById("nameInput");
         if (saveBtn && nameInput) {
-          saveBtn.addEventListener("click", () => {
-            const name = nameInput.value.trim() || "Anonymous";
-            if (lastScoreData) {
-              submitScore({
-                name,
-                score: lastScoreData.score,
-                distanceKm: lastScoreData.distanceKm,
-                timeSec: lastScoreData.timeSec,
-                fuelUsedPct: lastScoreData.fuelUsedPct,
-                mode: lastScoreData.mode,
-              })
-                .then(() => refreshLeaderboard())
-                .finally(() => {
-                  hideOverlay();
-                });
-            } else {
+          saveBtn.addEventListener("click", function () {
+            var name = nameInput.value.trim() || "Anonymous";
+            var data = lastScoreData;
+            submitScore({
+              name: name,
+              score: data.score,
+              distanceKm: data.distanceKm,
+              timeSec: data.timeSec,
+              fuelUsedPct: data.fuelUsedPct,
+              mode: data.mode
+            }).then(function () {
+              return fetchLeaderboard(10);
+            }).finally(function () {
               hideOverlay();
-            }
+            });
           });
         }
 
@@ -1162,124 +1135,117 @@
       }
 
       function predictImpact() {
-        let x = state.x;
-        let y = state.y;
-        let vx = state.vx;
-        let vy = state.vy;
-        let chute = state.chuteDeployed;
-        let t = 0;
-        const dt = 0.1;
-        const maxT = 120;
+        var x = state.x;
+        var y = state.y;
+        var vx = state.vx;
+        var vy = state.vy;
+        var chute = state.chuteDeployed;
+        var t = 0;
+        var dt = 0.1;
+        var maxT = 120;
 
         while (y > 0 && t < maxT) {
-          const rho = computeDensity(y);
-          const CdA = 2.0;
-          const mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
+          var rho = computeDensity(y);
+          var CdA = 2.0;
+          var mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
 
-          const a_drag_x =
-            mass > 0
-              ? (-0.5 * rho * CdA * vx * Math.abs(vx)) / mass
-              : 0;
-          let a_drag_y =
-            mass > 0
-              ? (-0.5 * rho * CdA * vy * Math.abs(vy)) / mass
-              : 0;
-
-          if (chute && mass > 0) {
-            const chuteCdA = 18;
-            a_drag_y +=
-              (-0.5 * rho * chuteCdA * vy * Math.abs(vy)) / mass;
+          var a_drag_x = 0;
+          var a_drag_y = 0;
+          if (mass > 0) {
+            a_drag_x = (-0.5 * rho * CdA * vx * Math.abs(vx)) / mass;
+            a_drag_y = (-0.5 * rho * CdA * vy * Math.abs(vy)) / mass;
           }
-
-          const a_grav_y = -G;
+          if (chute && mass > 0) {
+            var chuteCdA = 18;
+            a_drag_y += (-0.5 * rho * chuteCdA * vy * Math.abs(vy)) / mass;
+          }
+          var a_grav_y = -G;
 
           vx += a_drag_x * dt;
           vy += (a_drag_y + a_grav_y) * dt;
-          x += vx * dt;
-          y += vy * dt;
-          t += dt;
+          x  += vx * dt;
+          y  += vy * dt;
+          t  += dt;
         }
         state.predictedImpactX = x;
       }
 
+      // Meteor shower FX
+      var celebrateTime = 0;
+      var meteors = [];
+
       function updateMeteors(dt) {
-        const w = canvas.width / window.devicePixelRatio;
-        const h = canvas.height / window.devicePixelRatio;
+        var w = canvas.width / (window.devicePixelRatio || 1);
+        var h = canvas.height / (window.devicePixelRatio || 1);
 
         if (celebrateTime > 0) {
           celebrateTime -= dt;
           if (celebrateTime < 0) celebrateTime = 0;
-
-          for (let i = 0; i < 4; i++) {
+          for (var i = 0; i < 4; i++) {
             meteors.push({
               x: Math.random() * w,
               y: Math.random() * (h * 0.4),
               vx: 180 + Math.random() * 120,
               vy: 180 + Math.random() * 120,
               life: 0,
-              maxLife: 0.8 + Math.random() * 0.6,
+              maxLife: 0.8 + Math.random() * 0.6
             });
           }
         }
 
-        const next = [];
-        for (const m of meteors) {
-          m.x -= m.vx * dt;
-          m.y += m.vy * dt;
+        var next = [];
+        for (var j = 0; j < meteors.length; j++) {
+          var m = meteors[j];
+          m.x   -= m.vx * dt;
+          m.y   += m.vy * dt;
           m.life += dt;
-          if (m.life < m.maxLife) {
-            next.push(m);
-          }
+          if (m.life < m.maxLife) next.push(m);
         }
         meteors = next;
       }
 
       function renderMeteors() {
         if (celebrateTime <= 0 || meteors.length === 0) return;
-
         ctx.save();
         ctx.globalAlpha = 0.9;
-        ctx.lineWidth = 2;
-
-        for (const m of meteors) {
-          const trailX = m.x + m.vx * 0.05;
-          const trailY = m.y - m.vy * 0.05;
-
-          const tNorm = clamp(m.life / m.maxLife, 0, 1);
-          const r = 255;
-          const gCol = Math.round(200 + 55 * (1 - tNorm));
-          const bCol = Math.round(120 * (1 - tNorm));
-          ctx.strokeStyle = `rgba(${r},${gCol},${bCol},${1 - tNorm * 0.7})`;
-
+        ctx.lineWidth   = 2;
+        for (var i = 0; i < meteors.length; i++) {
+          var m = meteors[i];
+          var trailX = m.x + m.vx * 0.05;
+          var trailY = m.y - m.vy * 0.05;
+          var tNorm = clamp(m.life / m.maxLife, 0, 1);
+          var r = 255;
+          var gCol = Math.round(200 + 55 * (1 - tNorm));
+          var bCol = Math.round(120 * (1 - tNorm));
+          ctx.strokeStyle = "rgba(" + r + "," + gCol + "," + bCol + "," + (1 - tNorm * 0.7) + ")";
           ctx.beginPath();
           ctx.moveTo(m.x, m.y);
           ctx.lineTo(trailX, trailY);
           ctx.stroke();
         }
-
         ctx.restore();
       }
 
       function render() {
         updatePhaseLabels();
 
-        altitudeEl.textContent = (state.y / 1000).toFixed(3);
-        rangeEl.textContent = (Math.abs(state.x) / 1000).toFixed(3);
+        altitudeEl.textContent   = (state.y / 1000).toFixed(3);
+        rangeEl.textContent      = (Math.abs(state.x) / 1000).toFixed(3);
         distanceLZEl.textContent = Math.abs(state.x).toFixed(1);
 
-        vSpeedEl.textContent = state.vy.toFixed(1);
-        hSpeedEl.textContent = state.vx.toFixed(1);
-        missionTimeEl.textContent = state.time.toFixed(1);
+        vSpeedEl.textContent     = state.vy.toFixed(1);
+        hSpeedEl.textContent     = state.vx.toFixed(1);
+        missionTimeEl.textContent= state.time.toFixed(1);
 
-        const fuelPct = (state.fuel / FUEL_MAX) * 100;
-        fuelPctEl.textContent = fuelPct.toFixed(0);
-        fuelBarEl.style.width = clamp(fuelPct, 0, 100) + "%";
+        var fuelPct = (state.fuel / FUEL_MAX) * 100;
+        fuelPctEl.textContent     = fuelPct.toFixed(0);
+        fuelBarEl.style.width     = clamp(fuelPct, 0, 100) + "%";
 
-        const vDown = Math.max(0, -state.vy);
-        const vNorm = clamp(vDown / 50, 0, 1);
+        var vDown  = Math.max(0, -state.vy);
+        var vNorm  = clamp(vDown / 50, 0, 1);
         vSpeedBarEl.style.width = (vNorm * 100).toFixed(0) + "%";
 
-        const { crashV } = difficultyPresets[difficulty];
+        var crashV = difficultyPresets[difficulty].crashV;
 
         if (vDown > crashV && state.y < 600 && !state.finished) {
           warningTextEl.textContent = "⚠ TOO FAST";
@@ -1291,64 +1257,67 @@
           warningTextEl.textContent = "";
         }
 
-        const throttlePct = parseFloat(thrustSlider.value);
-        const tiltDeg = parseFloat(tiltSlider.value);
+        var throttlePct = parseFloat(thrustSlider.value);
+        var tiltDeg     = parseFloat(tiltSlider.value);
 
-        const thrFrac = clamp(throttlePct / 100, 0, 1);
+        // Thrust meter
+        var thrFrac = clamp(throttlePct / 100, 0, 1);
         thrustMeterFill.style.height = (thrFrac * 100).toFixed(0) + "%";
-        thrustTextAbove.textContent = `${throttlePct.toFixed(0)}%`;
-        let thrColor;
-        if (thrFrac < 0.7) thrColor = "rgba(55,219,165,0.95)";
+        thrustTextAbove.textContent  = throttlePct.toFixed(0) + "%";
+        var thrColor;
+        if (thrFrac < 0.7)      thrColor = "rgba(55,219,165,0.95)";
         else if (thrFrac < 0.9) thrColor = "rgba(255,183,77,0.98)";
-        else thrColor = "rgba(255,75,106,0.98)";
+        else                    thrColor = "rgba(255,75,106,0.98)";
         thrustMeterFill.style.background = thrColor;
-        thrustMeterFill.style.boxShadow = `0 0 12px ${thrColor}`;
+        thrustMeterFill.style.boxShadow  = "0 0 12px " + thrColor;
 
-        const tiltFrac = clamp(Math.abs(tiltDeg) / 25, 0, 1);
-        const half = 50;
-        const widthPct = tiltFrac * half;
+        // Tilt meter (centre zero)
+        var tiltFrac   = clamp(Math.abs(tiltDeg) / 25, 0, 1);
+        var half       = 50;
+        var widthPct   = tiltFrac * half;
         if (tiltDeg >= 0) {
           tiltMeterFill.style.left = "50%";
         } else {
-          tiltMeterFill.style.left = `${50 - widthPct}%`;
+          tiltMeterFill.style.left = (50 - widthPct) + "%";
         }
-        tiltMeterFill.style.width = `${widthPct}%`;
-        let tiltColor;
-        if (tiltFrac < 0.7) tiltColor = "rgba(55,219,165,0.95)";
+        tiltMeterFill.style.width     = widthPct + "%";
+        var tiltColor;
+        if (tiltFrac < 0.7)      tiltColor = "rgba(55,219,165,0.95)";
         else if (tiltFrac < 0.9) tiltColor = "rgba(255,183,77,0.98)";
-        else tiltColor = "rgba(255,75,106,0.98)";
+        else                     tiltColor = "rgba(255,75,106,0.98)";
         tiltMeterFill.style.background = tiltColor;
-        tiltMeterFill.style.boxShadow = `0 0 12px ${tiltColor}`;
-        tiltMeterText.textContent = `${tiltDeg.toFixed(0)}°`;
+        tiltMeterFill.style.boxShadow  = "0 0 12px " + tiltColor;
+        tiltMeterText.textContent      = tiltDeg.toFixed(0) + "°";
 
         if (!state.finished && state.y > 0) {
           predictImpact();
         }
 
-        const w = canvas.width / window.devicePixelRatio;
-        const h = canvas.height / window.devicePixelRatio;
+        var dpr = window.devicePixelRatio || 1;
+        var w   = canvas.width  / dpr;
+        var h   = canvas.height / dpr;
 
         ctx.clearRect(0, 0, w, h);
 
-        const inSpace = state.y > STAR_ALT_THRESHOLD;
-
-        const groundY = h - 26;
-        const targetXScreen = w * 0.5;
-        const scaleX = 0.04;
+        var inSpace = state.y > STAR_ALT_THRESHOLD;
+        var groundY = h - 26;
+        var targetXScreen = w * 0.5;
+        var scaleX        = 0.04;
 
         if (inSpace) {
           renderStars();
         } else {
-          const layers = [
+          // Atmosphere layers
+          var layers = [
             "rgba(90,140,255,0.08)",
             "rgba(120,110,255,0.08)",
             "rgba(180,90,200,0.08)",
-            "rgba(255,150,120,0.10)",
+            "rgba(255,150,120,0.10)"
           ];
-          const layerCount = layers.length;
-          for (let i = 0; i < layerCount; i++) {
-            const y0 = (groundY * i) / layerCount;
-            const y1 = (groundY * (i + 1)) / layerCount;
+          var layerCount = layers.length;
+          for (var i = 0; i < layerCount; i++) {
+            var y0 = groundY * i / layerCount;
+            var y1 = groundY * (i + 1) / layerCount;
             ctx.fillStyle = layers[i];
             ctx.fillRect(0, y0, w, y1 - y0);
           }
@@ -1359,7 +1328,7 @@
           ctx.save();
           ctx.translate(targetXScreen, groundY);
           ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2;
+          ctx.lineWidth   = 2;
           ctx.beginPath();
           ctx.moveTo(0, 0);
           ctx.lineTo(0, -18);
@@ -1377,54 +1346,45 @@
 
         renderMeteors();
 
-        const landerXScreen = targetXScreen + state.x * scaleX;
-
-        let landerYScreen;
+        var landerXScreen = targetXScreen + state.x * scaleX;
+        var landerYScreen;
         if (inSpace) {
-          const spaceTop = 40;
-          const spaceBottom = h * 0.7;
-          const extraAlt = state.y - STAR_ALT_THRESHOLD;
-          const norm = clamp(extraAlt / STAR_ALT_THRESHOLD, 0, 1);
-          landerYScreen =
-            spaceBottom - norm * (spaceBottom - spaceTop);
+          var spaceTop    = 40;
+          var spaceBottom = h * 0.7;
+          var extraAlt    = state.y - STAR_ALT_THRESHOLD;
+          var norm        = clamp(extraAlt / STAR_ALT_THRESHOLD, 0, 1);
+          landerYScreen   = spaceBottom - norm * (spaceBottom - spaceTop);
         } else {
-          const altNorm = clamp(state.y / MAX_SIM_ALT, 0, 1);
-          landerYScreen =
-            groundY - 10 - altNorm * (groundY - 40);
+          var altNorm     = clamp(state.y / MAX_SIM_ALT, 0, 1);
+          landerYScreen   = groundY - 10 - altNorm * (groundY - 40);
         }
 
-        if (
-          !inSpace &&
-          state.predictedImpactX !== null &&
-          state.y > 0 &&
-          !state.finished
-        ) {
-          const impactScreenX =
-            targetXScreen + state.predictedImpactX * scaleX;
-          const clampedImpactX = clamp(impactScreenX, 0, w);
-
+        // predicted impact ✕
+        if (!inSpace && state.predictedImpactX !== null && state.y > 0 && !state.finished) {
+          var impactScreenX = targetXScreen + state.predictedImpactX * scaleX;
+          var clampedImpactX = clamp(impactScreenX, 0, w);
           ctx.save();
           ctx.translate(clampedImpactX, groundY);
           ctx.strokeStyle = "#ff8a65";
-          ctx.lineWidth = 2;
+          ctx.lineWidth   = 2;
           ctx.beginPath();
           ctx.moveTo(-8, 0);
           ctx.lineTo(8, 0);
           ctx.moveTo(0, 0);
           ctx.lineTo(0, -10);
           ctx.stroke();
-
-          ctx.fillStyle = "#ff8a65";
-          ctx.font = "10px system-ui";
-          ctx.textAlign = "center";
+          ctx.fillStyle  = "#ff8a65";
+          ctx.font       = "10px system-ui";
+          ctx.textAlign  = "center";
           ctx.fillText("✕", 0, -12);
           ctx.restore();
         }
 
+        // helper vertical
         if (!inSpace) {
           ctx.save();
           ctx.strokeStyle = "rgba(55,219,165,0.4)";
-          ctx.lineWidth = 1;
+          ctx.lineWidth   = 1;
           ctx.beginPath();
           ctx.moveTo(landerXScreen, groundY - 10);
           ctx.lineTo(landerXScreen, landerYScreen);
@@ -1432,25 +1392,25 @@
           ctx.restore();
         }
 
-        // Off-screen direction arrows (lander off-screen horizontally)
+        // Off-screen direction arrows for lander
         if (landerXScreen < -10) {
           ctx.save();
-          ctx.fillStyle = "#ffeb3b";
-          ctx.font = "14px system-ui";
-          ctx.textAlign = "left";
+          ctx.fillStyle  = "#ffeb3b";
+          ctx.font       = "14px system-ui";
+          ctx.textAlign  = "left";
           ctx.fillText("◀", 6, h - 6);
           ctx.restore();
         } else if (landerXScreen > w + 10) {
           ctx.save();
-          ctx.fillStyle = "#ffeb3b";
-          ctx.font = "14px system-ui";
-          ctx.textAlign = "right";
+          ctx.fillStyle  = "#ffeb3b";
+          ctx.font       = "14px system-ui";
+          ctx.textAlign  = "right";
           ctx.fillText("▶", w - 6, h - 6);
           ctx.restore();
         }
 
         if (state.finished && state.crashed) {
-          const crashGroundY = inSpace ? h - 26 : groundY;
+          var crashGroundY = inSpace ? (h - 26) : groundY;
           ctx.save();
           ctx.translate(landerXScreen, crashGroundY - 4);
 
@@ -1459,25 +1419,24 @@
           ctx.ellipse(0, 6, 14, 5, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          const grad = ctx.createRadialGradient(0, -4, 0, 0, -4, 20);
-          grad.addColorStop(0, "rgba(255, 234, 0, 0.9)");
+          var grad = ctx.createRadialGradient(0, -4, 0, 0, -4, 20);
+          grad.addColorStop(0,   "rgba(255, 234, 0, 0.9)");
           grad.addColorStop(0.4, "rgba(255, 160, 0, 0.7)");
-          grad.addColorStop(1, "rgba(121, 85, 72, 0)");
+          grad.addColorStop(1,   "rgba(121, 85, 72, 0)");
           ctx.fillStyle = grad;
           ctx.beginPath();
           ctx.arc(0, -4, 20, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.fillStyle = "#ffc107";
-          for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8;
-            const dx = Math.cos(angle) * (8 + i);
-            const dy = Math.sin(angle) * (5 + i * 0.5);
+          for (var k = 0; k < 8; k++) {
+            var angle = Math.PI * 2 * k / 8;
+            var dx = Math.cos(angle) * (8 + k);
+            var dy = Math.sin(angle) * (5 + k * 0.5);
             ctx.beginPath();
             ctx.arc(dx, -4 + dy, 1.5, 0, Math.PI * 2);
             ctx.fill();
           }
-
           ctx.restore();
           return;
         }
@@ -1486,13 +1445,12 @@
         ctx.save();
         ctx.translate(landerXScreen, landerYScreen);
 
-        const tiltDegNow = state.thetaDeg;
-        const tiltRad = (tiltDegNow * Math.PI) / 180;
+        var tiltRad = state.thetaDeg * Math.PI / 180;
         ctx.rotate(-tiltRad);
 
-        ctx.fillStyle = "#eceff1";
+        ctx.fillStyle   = "#eceff1";
         ctx.strokeStyle = "#263238";
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth   = 1.5;
         ctx.beginPath();
         ctx.moveTo(-6, 8);
         ctx.lineTo(6, 8);
@@ -1509,7 +1467,7 @@
         ctx.fill();
 
         ctx.strokeStyle = "#90a4ae";
-        ctx.lineWidth = 1.3;
+        ctx.lineWidth   = 1.3;
         ctx.beginPath();
         ctx.moveTo(-6, 8);
         ctx.lineTo(-10, 14);
@@ -1517,9 +1475,9 @@
         ctx.lineTo(10, 14);
         ctx.stroke();
 
-        const throttle = throttlePct / 100;
+        var throttle = throttlePct / 100;
         if (throttle > 0.02 && !state.finished) {
-          const flameLen = 4 + 22 * throttle;
+          var flameLen = 4 + 22 * throttle;
           ctx.fillStyle = "#ffb74d";
           ctx.beginPath();
           ctx.moveTo(-3, 8);
@@ -1541,7 +1499,7 @@
           ctx.save();
           ctx.translate(0, -18);
           ctx.strokeStyle = "#cfd8dc";
-          ctx.lineWidth = 1;
+          ctx.lineWidth   = 1;
           ctx.beginPath();
           ctx.moveTo(0, 0);
           ctx.lineTo(0, -12);
@@ -1557,25 +1515,115 @@
         ctx.restore();
       }
 
-      function showOverlay(title, body) {
-        overlayTitle.textContent = title;
-        overlayBody.textContent = body;
-        overlay.style.display = "flex";
+      // ---------- FULLSCREEN ----------
+      function isFullscreen() {
+        return document.fullscreenElement ||
+               document.webkitFullscreenElement ||
+               document.mozFullScreenElement ||
+               document.msFullscreenElement;
       }
 
-      function hideOverlay() {
-        overlay.style.display = "none";
+      function requestFullscreen(elem) {
+        if (elem.requestFullscreen)       elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+        else if (elem.mozRequestFullScreen)    elem.mozRequestFullScreen();
+        else if (elem.msRequestFullscreen)     elem.msRequestFullscreen();
       }
 
-      overlayClose.addEventListener("click", hideOverlay);
-      overlay.addEventListener("click", (e) => {
-        if (e.target === overlay) hideOverlay();
+      function exitFullscreen() {
+        if (document.exitFullscreen)       document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen)  document.mozCancelFullScreen();
+        else if (document.msExitFullscreen)     document.msExitFullscreen();
+      }
+
+      function updateFsButtonLabel() {
+        fsBtn.textContent = isFullscreen() ? "Windowed" : "Fullscreen";
+      }
+
+      fsBtn.addEventListener("click", function () {
+        if (isFullscreen()) exitFullscreen();
+        else requestFullscreen(document.documentElement);
       });
 
-      // Start / pause / resume
-      startBtn.addEventListener("click", () => {
-        if (state.finished) return;
+      document.addEventListener("fullscreenchange",       updateFsButtonLabel);
+      document.addEventListener("webkitfullscreenchange", updateFsButtonLabel);
+      document.addEventListener("mozfullscreenchange",    updateFsButtonLabel);
+      document.addEventListener("MSFullscreenChange",     updateFsButtonLabel);
+      updateFsButtonLabel();
 
+      // ---------- D-PAD / TOUCH STATES ----------
+      function bindPadButton(btn, stateObj) {
+        function setDown(e) {
+          e.preventDefault();
+          stateObj.touch = true;
+          btn.classList.add("dpad-btn-active");
+        }
+        function setUp(e) {
+          e.preventDefault();
+          stateObj.touch = false;
+          btn.classList.remove("dpad-btn-active");
+        }
+        ["mousedown", "touchstart"].forEach(function (ev) {
+          btn.addEventListener(ev, setDown);
+        });
+        ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(function (ev) {
+          btn.addEventListener(ev, setUp);
+        });
+      }
+
+      var thrustUpState   = { touch: false, prev: false, hold: 0 };
+      var thrustDownState = { touch: false, prev: false, hold: 0 };
+      var tiltLeftState   = { touch: false, prev: false, hold: 0 };
+      var tiltRightState  = { touch: false, prev: false, hold: 0 };
+
+      bindPadButton(dpadUp,    thrustUpState);
+      bindPadButton(dpadDown,  thrustDownState);
+      bindPadButton(dpadLeft,  tiltLeftState);
+      bindPadButton(dpadRight, tiltRightState);
+
+      function handleLogarithmicControl(dt, stateObj, slider, isThrust, sign) {
+        var isPressed = stateObj.touch; // (gamepad also could set a pad flag later)
+        if (!isPressed) {
+          stateObj.prev = false;
+          stateObj.hold = 0;
+          return;
+        }
+
+        if (!stateObj.prev) {
+          var v = parseFloat(slider.value);
+          v += sign * 1;
+          v = clamp(v, parseFloat(slider.min), parseFloat(slider.max));
+          slider.value = String(Math.round(v));
+          stateObj.prev = true;
+          stateObj.hold = 0;
+          return;
+        }
+
+        stateObj.hold += dt;
+        var hold = stateObj.hold;
+        var threshold = 0.2;
+        if (hold <= threshold) return;
+        var t   = hold - threshold;
+        var base = isThrust ? 35 : 18;
+        var speed = base * Math.log(1 + t * 4) / Math.log(2);
+
+        var val = parseFloat(slider.value);
+        val += sign * speed * dt;
+        val = clamp(val, parseFloat(slider.min), parseFloat(slider.max));
+        slider.value = String(Math.round(val));
+      }
+
+      function updateControlRamps(dt) {
+        handleLogarithmicControl(dt, thrustUpState,   thrustSlider, true,  +1);
+        handleLogarithmicControl(dt, thrustDownState, thrustSlider, true,  -1);
+        handleLogarithmicControl(dt, tiltLeftState,   tiltSlider,   false, -1);
+        handleLogarithmicControl(dt, tiltRightState,  tiltSlider,   false, +1);
+      }
+
+      // ---------- BUTTON HANDLERS ----------
+      startBtn.addEventListener("click", function () {
+        if (state.finished) return;
         if (state.playing) {
           state.playing = false;
           startBtn.textContent = "Resume";
@@ -1586,216 +1634,36 @@
         }
       });
 
-      resetBtn.addEventListener("click", () => {
+      resetBtn.addEventListener("click", function () {
         resetGame();
       });
 
-      chuteBtn.addEventListener("click", () => {
+      chuteBtn.addEventListener("click", function () {
         if (!state.chuteDeployed && state.chuteSafe && !state.finished) {
           state.chuteDeployed = true;
           chuteBtn.disabled = true;
         }
       });
 
-      modeEasyBtn.addEventListener("click", () => setDifficulty("easy"));
-      modeMediumBtn.addEventListener("click", () => setDifficulty("medium"));
-      modeHardBtn.addEventListener("click", () => setDifficulty("hard"));
+      modeEasyBtn.addEventListener("click",   function () { setDifficulty("easy");   });
+      modeMediumBtn.addEventListener("click", function () { setDifficulty("medium"); });
+      modeHardBtn.addEventListener("click",   function () { setDifficulty("hard");   });
 
-      // ===== FULLSCREEN TOGGLE =====
-      function isFullscreen() {
-        return (
-          document.fullscreenElement ||
-          document.webkitFullscreenElement ||
-          document.mozFullScreenElement ||
-          document.msFullscreenElement
-        );
-      }
+      // ---------- MAIN LOOP ----------
+      var lastTs = null;
 
-      function requestFullscreen(elem) {
-        if (elem.requestFullscreen) elem.requestFullscreen();
-        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-        else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen();
-        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-      }
+      function loop(timestamp) {
+        if (lastTs === null) lastTs = timestamp;
+        var dt = (timestamp - lastTs) / 1000;
+        lastTs = timestamp;
 
-      function exitFullscreen() {
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-        else if (document.msExitFullscreen) document.msExitFullscreen();
-      }
-
-      function updateFsButtonLabel() {
-        fsBtn.textContent = isFullscreen() ? "Windowed" : "Fullscreen";
-      }
-
-      fsBtn.addEventListener("click", () => {
-        if (isFullscreen()) {
-          exitFullscreen();
-        } else {
-          requestFullscreen(document.documentElement);
-        }
-      });
-
-      document.addEventListener("fullscreenchange", updateFsButtonLabel);
-      document.addEventListener("webkitfullscreenchange", updateFsButtonLabel);
-      document.addEventListener("mozfullscreenchange", updateFsButtonLabel);
-      document.addEventListener("MSFullscreenChange", updateFsButtonLabel);
-      updateFsButtonLabel();
-
-      // ========== D-PAD TOUCH HANDLING ==========
-      function bindPadButton(btn, stateObj) {
-        const setDown = (e) => {
-          e.preventDefault();
-          stateObj.touch = true;
-          btn.classList.add("dpad-btn-active");
-        };
-        const setUp = (e) => {
-          e.preventDefault();
-          stateObj.touch = false;
-          btn.classList.remove("dpad-btn-active");
-        };
-        ["mousedown", "touchstart"].forEach((ev) =>
-          btn.addEventListener(ev, setDown)
-        );
-        ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((ev) =>
-          btn.addEventListener(ev, setUp)
-        );
-      }
-
-      const BTN_FACE_BOTTOM = 0;
-      const BTN_FACE_RIGHT = 1;
-      const BTN_FACE_LEFT = 2;
-      const BTN_FACE_TOP = 3;
-      const BTN_SELECT = 8;
-      const BTN_START = 9;
-      const BTN_RT = 7;
-      const BTN_DPAD_UP = 12;
-      const BTN_DPAD_DOWN = 13;
-      const BTN_DPAD_LEFT = 14;
-      const BTN_DPAD_RIGHT = 15;
-
-      let thrustUpState = { pad: false, touch: false, prev: false, hold: 0 };
-      let thrustDownState = { pad: false, touch: false, prev: false, hold: 0 };
-      let tiltLeftState = { pad: false, touch: false, prev: false, hold: 0 };
-      let tiltRightState = { pad: false, touch: false, prev: false, hold: 0 };
-
-      let rtPrev = false;
-      let startPrev = false;
-      let selectPrev = false;
-
-      bindPadButton(dpadUp, thrustUpState);
-      bindPadButton(dpadDown, thrustDownState);
-      bindPadButton(dpadLeft, tiltLeftState);
-      bindPadButton(dpadRight, tiltRightState);
-
-      function buttonPressed(gamepad, index) {
-        const b = gamepad.buttons[index];
-        return b && (b.pressed || b.value > 0.5);
-      }
-
-      function handleLogarithmicControl(dt, stateObj, slider, isThrust, sign) {
-        const isPressed = stateObj.pad || stateObj.touch;
-
-        if (!isPressed) {
-          stateObj.prev = false;
-          stateObj.hold = 0;
-          return;
-        }
-
-        if (!stateObj.prev) {
-          let v = parseFloat(slider.value);
-          v += sign * 1;
-          const min = parseFloat(slider.min);
-          const max = parseFloat(slider.max);
-          v = clamp(v, min, max);
-          slider.value = v.toFixed(0);
-          stateObj.prev = true;
-          stateObj.hold = 0;
-          return;
-        }
-
-        stateObj.hold += dt;
-        const hold = stateObj.hold;
-
-        const threshold = 0.2;
-        if (hold <= threshold) return;
-
-        const t = hold - threshold;
-        const rateBase = isThrust ? 35 : 18;
-        const speed = rateBase * Math.log2(1 + t * 4);
-
-        let val = parseFloat(slider.value);
-        val += sign * speed * dt;
-        const min = parseFloat(slider.min);
-        const max = parseFloat(slider.max);
-        val = clamp(val, min, max);
-        slider.value = val.toFixed(0);
-      }
-
-      function updateGamepad(dt) {
-        if (!navigator.getGamepads) return;
-        const gps = navigator.getGamepads();
-        const gp = gps[0];
-        if (!gp) return;
-
-        const thrustUpPressed =
-          buttonPressed(gp, BTN_DPAD_UP) || buttonPressed(gp, BTN_FACE_TOP);
-        const thrustDownPressed =
-          buttonPressed(gp, BTN_DPAD_DOWN) ||
-          buttonPressed(gp, BTN_FACE_BOTTOM);
-        const tiltLeftPressed =
-          buttonPressed(gp, BTN_DPAD_LEFT) || buttonPressed(gp, BTN_FACE_LEFT);
-        const tiltRightPressed =
-          buttonPressed(gp, BTN_DPAD_RIGHT) ||
-          buttonPressed(gp, BTN_FACE_RIGHT);
-
-        thrustUpState.pad = thrustUpPressed;
-        thrustDownState.pad = thrustDownPressed;
-        tiltLeftState.pad = tiltLeftPressed;
-        tiltRightState.pad = tiltRightPressed;
-
-        const rtPressed = buttonPressed(gp, BTN_RT);
-        if (rtPressed && !rtPrev) {
-          chuteBtn.click();
-        }
-        rtPrev = rtPressed;
-
-        const startPressed = buttonPressed(gp, BTN_START);
-        if (startPressed && !startPrev) {
-          startBtn.click();
-        }
-        startPrev = startPressed;
-
-        const selectPressed = buttonPressed(gp, BTN_SELECT);
-        if (selectPressed && !selectPrev) {
-          resetBtn.click();
-        }
-        selectPrev = selectPressed;
-      }
-
-      function updateControlRamps(dt) {
-        handleLogarithmicControl(dt, thrustUpState, thrustSlider, true, +1);
-        handleLogarithmicControl(dt, thrustDownState, thrustSlider, true, -1);
-        handleLogarithmicControl(dt, tiltLeftState, tiltSlider, false, -1);
-        handleLogarithmicControl(dt, tiltRightState, tiltSlider, false, +1);
-      }
-
-      let lastTs = null;
-
-      function loop(ts) {
-        if (lastTs == null) lastTs = ts;
-        const dt = (ts - lastTs) / 1000;
-        lastTs = ts;
-
-        const stepSize = 1 / 60;
-        let acc = dt;
+        var stepSize = 1 / 60;
+        var acc = dt;
         while (acc > 0) {
-          const d = Math.min(stepSize, acc);
+          var d = acc < stepSize ? acc : stepSize;
           step(d);
           updateMeteors(d);
           updateStars(d);
-          updateGamepad(d);
           updateControlRamps(d);
           acc -= d;
         }
@@ -1805,7 +1673,7 @@
       }
 
       requestAnimationFrame(loop);
-    })();
+    });
   </script>
 </body>
 </html>
