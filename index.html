@@ -610,7 +610,7 @@
   </div>
 
   <script>
-    // All code is in a plain function called on window load to avoid weird early DOM issues.
+    // All code is in a plain function called on window load to avoid early DOM issues.
     window.addEventListener("load", function () {
       // ---------- SUPABASE CONFIG ----------
       var SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
@@ -684,7 +684,7 @@
                   difficultyLabel(e.mode) + ", " +
                   e.distanceKm + " km, " +
                   e.timeSec + " s, " +
-                  e.fuelUsedPct + "% fuel</span></li>";
+                  e.fuelUsedPct + "% fuel</span></li>';
         }
         html += "</ol>";
         leaderboardContent.innerHTML = html;
@@ -800,7 +800,8 @@
 
       // ---------- STARFIELD ----------
       var stars      = [];
-      var starScroll = 0;
+      var starScrollX = 0;
+      var starScrollY = 0;
 
       function initStars() {
         var w = canvas.width / (window.devicePixelRatio || 1);
@@ -818,7 +819,10 @@
 
       function updateStars(dt) {
         if (!state) return;
-        starScroll += -state.vy * dt * 0.12;
+        // Move stars opposite velocity vector to show trajectory
+        var factor = 0.35;
+        starScrollX += -state.vx * dt * factor;
+        starScrollY += -state.vy * dt * factor;
       }
 
       function renderStars() {
@@ -830,12 +834,15 @@
 
         for (var i = 0; i < stars.length; i++) {
           var s = stars[i];
-          var offsetY = (s.y + starScroll * s.depth) % h;
-          var y = offsetY < 0 ? offsetY + h : offsetY;
+          var x = (s.x + starScrollX * s.depth) % w;
+          var y = (s.y + starScrollY * s.depth) % h;
+          if (x < 0) x += w;
+          if (y < 0) y += h;
+
           var size  = 1 + s.depth * 1.5;
           var alpha = 0.3 + 0.6 * s.depth;
           ctx.fillStyle = "rgba(220,235,255," + alpha.toFixed(2) + ")";
-          ctx.fillRect(s.x, y, size, size);
+          ctx.fillRect(x, y, size, size);
         }
 
         ctx.restore();
@@ -886,7 +893,8 @@
 
         celebrateTime = 0;
         meteors = [];
-        starScroll = 0;
+        starScrollX = 0;
+        starScrollY = 0;
         hideOverlay();
       }
 
@@ -1346,15 +1354,20 @@
 
         renderMeteors();
 
-        var landerXScreen = targetXScreen + state.x * scaleX;
+        // Lander screen coords
+        var landerXScreen;
         var landerYScreen;
+
         if (inSpace) {
+          // keep ship centred horizontally in space
+          landerXScreen = w * 0.5;
           var spaceTop    = 40;
           var spaceBottom = h * 0.7;
           var extraAlt    = state.y - STAR_ALT_THRESHOLD;
           var norm        = clamp(extraAlt / STAR_ALT_THRESHOLD, 0, 1);
           landerYScreen   = spaceBottom - norm * (spaceBottom - spaceTop);
         } else {
+          landerXScreen = targetXScreen + state.x * scaleX;
           var altNorm     = clamp(state.y / MAX_SIM_ALT, 0, 1);
           landerYScreen   = groundY - 10 - altNorm * (groundY - 40);
         }
@@ -1380,7 +1393,7 @@
           ctx.restore();
         }
 
-        // helper vertical
+        // helper vertical from ship to ground (when atmosphere visible)
         if (!inSpace) {
           ctx.save();
           ctx.strokeStyle = "rgba(55,219,165,0.4)";
@@ -1392,20 +1405,23 @@
           ctx.restore();
         }
 
-        // Off-screen direction arrows for lander
-        if (landerXScreen < -10) {
+        // Off-screen direction arrows: show how to get back over the LZ (pin at x=0)
+        // We check how far the ship is from the LZ in world units and convert to screen.
+        var worldToScreen = Math.abs(state.x) * scaleX;
+        if (worldToScreen > w * 0.5) {
           ctx.save();
-          ctx.fillStyle  = "#ffeb3b";
-          ctx.font       = "14px system-ui";
-          ctx.textAlign  = "left";
-          ctx.fillText("◀", 6, h - 6);
-          ctx.restore();
-        } else if (landerXScreen > w + 10) {
-          ctx.save();
-          ctx.fillStyle  = "#ffeb3b";
-          ctx.font       = "14px system-ui";
-          ctx.textAlign  = "right";
-          ctx.fillText("▶", w - 6, h - 6);
+          ctx.fillStyle = "#ffeb3b";
+          ctx.font = "14px system-ui";
+
+          if (state.x > 0) {
+            // Ship is to the RIGHT of the LZ -> point LEFT to get back
+            ctx.textAlign = "right";
+            ctx.fillText("◀", w - 6, h - 6);
+          } else {
+            // Ship is to the LEFT of the LZ -> point RIGHT to get back
+            ctx.textAlign = "left";
+            ctx.fillText("▶", 6, h - 6);
+          }
           ctx.restore();
         }
 
@@ -1583,7 +1599,7 @@
       bindPadButton(dpadRight, tiltRightState);
 
       function handleLogarithmicControl(dt, stateObj, slider, isThrust, sign) {
-        var isPressed = stateObj.touch; // (gamepad also could set a pad flag later)
+        var isPressed = stateObj.touch; // (gamepad could also set a pad flag later)
         if (!isPressed) {
           stateObj.prev = false;
           stateObj.hold = 0;
