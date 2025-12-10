@@ -818,13 +818,17 @@
       }
 
       function updateStars(dt) {
-        if (!state) return;
-        // Move stars opposite velocity vector to show trajectory
-        var factor = 0.35;
-        starScrollX += -state.vx * dt * factor;
-        starScrollY += -state.vy * dt * factor;
-      }
+  if (!state) return;
 
+  // Treat stars like a textured wallpaper the ship is flying past.
+  // We bias this so that the visual direction *feels* right with your controls:
+  // when you push "right", the stars flow clearly the other way.
+  var factor = 0.6; // higher = more obvious sense of speed/direction
+
+  // Flip signs so visually the background flows opposite of the *control* direction.
+  starScrollX += state.vx * dt * factor;
+  starScrollY += state.vy * dt * factor;
+}
       function renderStars() {
         var w = canvas.width / (window.devicePixelRatio || 1);
         var h = canvas.height / (window.devicePixelRatio || 1);
