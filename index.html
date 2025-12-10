@@ -123,8 +123,8 @@
 
     /* Visualisation */
     #viz-card {
-      height: 36vh;
-      min-height: 220px;
+      height: 32vh;
+      min-height: 200px;
       display: flex;
       flex-direction: column;
     }
@@ -193,8 +193,8 @@
       border: 1px solid #293145;
       background: #151b27;
       color: var(--text);
-      font-size: 0.8rem;
-      padding: 8px 10px;
+      font-size: 0.78rem;
+      padding: 7px 9px;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       cursor: pointer;
@@ -257,33 +257,33 @@
     .dpad-grid {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
     .dpad-row {
       display: flex;
-      gap: 4px;
+      gap: 3px;
       justify-content: center;
       align-items: center;
     }
 
     .dpad-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
       background: radial-gradient(circle at 30% 30%, #283347, #0b0f18);
       border: 1px solid #38445c;
       color: #e0f7fa;
-      font-size: 1rem;
+      font-size: 0.95rem;
       text-shadow: 0 0 6px rgba(0, 255, 255, 0.9);
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
       flex: 0 0 auto;
     }
 
     .dpad-center {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       border: 1px dashed #283347;
       background: radial-gradient(circle at 30% 30%, #151b27, #05070b);
     }
@@ -298,14 +298,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex: 0 0 auto;
     }
 
     .chute-big {
-      width: 96px;
-      height: 72px;
-      border-radius: 16px;
+      width: 82px;
+      height: 62px;
+      border-radius: 14px;
       background: radial-gradient(circle at 30% 20%, #ffeb3b, #ff5722);
       color: #1b1308;
       border: 1px solid #ffcc80;
@@ -348,8 +348,6 @@
 
     .led-fill {
       position: absolute;
-      left: 0;
-      bottom: 0;
       background: linear-gradient(180deg, #37dba5, #4fc3f7);
       box-shadow: 0 0 12px rgba(0, 255, 200, 0.8);
     }
@@ -357,11 +355,15 @@
     .led-meter-horizontal .led-fill {
       height: 100%;
       width: 0%;
+      left: 50%;
+      transform-origin: center;
     }
 
     .led-meter-vertical .led-fill {
       width: 100%;
       height: 0%;
+      left: 0;
+      bottom: 0;
     }
 
     .led-text {
@@ -373,6 +375,16 @@
       font-size: 0.7rem;
       color: #e0f7fa;
       text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+      pointer-events: none;
+    }
+
+    .tilt-zero-mark {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      left: 50%;
+      background: rgba(200, 220, 255, 0.5);
       pointer-events: none;
     }
 
@@ -425,7 +437,19 @@
 </head>
 <body>
   <div id="app">
-    <!-- Telemetry -->
+
+    <!-- Visualisation FIRST -->
+    <div id="viz-card" class="card">
+      <div id="viz-header">
+        <span>Side View – Exosphere to Touchdown</span>
+        <span id="warningText"></span>
+      </div>
+      <div id="viz">
+        <canvas id="vizCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Telemetry under visual -->
     <div id="telemetry" class="card">
       <div class="tele-block">
         <div>
@@ -435,6 +459,10 @@
         <div>
           <div class="tele-label">Range to Target</div>
           <div class="tele-value"><span id="range">0.0</span> km</div>
+        </div>
+        <div>
+          <div class="tele-label">Distance to LZ</div>
+          <div class="tele-value"><span id="distanceLZ">0.0</span> m</div>
         </div>
       </div>
 
@@ -481,20 +509,9 @@
       </div>
     </div>
 
-    <!-- Visualisation -->
-    <div id="viz-card" class="card">
-      <div id="viz-header">
-        <span>Side View – Atmosphere & Impact ✕</span>
-        <span id="warningText"></span>
-      </div>
-      <div id="viz">
-        <canvas id="vizCanvas"></canvas>
-      </div>
-    </div>
-
     <!-- Controls -->
     <div id="controls">
-      <!-- Start / Reset -->
+      <!-- Start / Reset / Fullscreen -->
       <div class="ctrl-group">
         <div class="ctrl-label">
           <span>Mission Control</span>
@@ -502,6 +519,7 @@
         <div class="btn-row">
           <button id="startBtn" class="primary">Start Mission</button>
           <button id="resetBtn">Reset</button>
+          <button id="fsBtn">Fullscreen</button>
         </div>
       </div>
 
@@ -510,6 +528,7 @@
         <div class="tilt-meter-row">
           <div class="tele-label">Tilt</div>
           <div class="led-meter led-meter-horizontal">
+            <div class="tilt-zero-mark"></div>
             <div id="tiltMeterFill" class="led-fill"></div>
             <div id="tiltMeterText" class="led-text">0°</div>
           </div>
@@ -518,9 +537,9 @@
         <div class="pad-row">
           <div class="dpad-grid">
             <div class="dpad-row">
-              <div style="width:24px;"></div>
+              <div style="width:20px;"></div>
               <button id="dpadUp" class="dpad-btn">▲</button>
-              <div style="width:24px;"></div>
+              <div style="width:20px;"></div>
             </div>
             <div class="dpad-row">
               <button id="dpadLeft" class="dpad-btn">◀</button>
@@ -528,19 +547,20 @@
               <button id="dpadRight" class="dpad-btn">▶</button>
             </div>
             <div class="dpad-row">
-              <div style="width:24px;"></div>
+              <div style="width:20px;"></div>
               <button id="dpadDown" class="dpad-btn">▼</button>
-              <div style="width:24px;"></div>
+              <div style="width:20px;"></div>
             </div>
           </div>
 
           <div class="pad-right">
             <button id="chuteBtn" class="chute-big">CHUTE</button>
             <div class="thrust-meter-wrapper">
-              <div class="tele-label">Thrust</div>
+              <div class="tele-label" style="text-align:center;">
+                Thrust: <span id="thrustTextAbove">0%</span>
+              </div>
               <div class="led-meter led-meter-vertical">
                 <div id="thrustMeterFill" class="led-fill"></div>
-                <div id="thrustMeterText" class="led-text">0%</div>
               </div>
             </div>
           </div>
@@ -702,6 +722,7 @@
       // === DOM refs ===
       const altitudeEl = document.getElementById("altitude");
       const rangeEl = document.getElementById("range");
+      const distanceLZEl = document.getElementById("distanceLZ");
       const vSpeedEl = document.getElementById("vSpeed");
       const hSpeedEl = document.getElementById("hSpeed");
       const vSpeedBarEl = document.getElementById("vSpeedBar");
@@ -714,6 +735,7 @@
 
       const startBtn = document.getElementById("startBtn");
       const resetBtn = document.getElementById("resetBtn");
+      const fsBtn = document.getElementById("fsBtn");
       const chuteBtn = document.getElementById("chuteBtn");
 
       const modeEasyBtn = document.getElementById("modeEasy");
@@ -736,7 +758,7 @@
 
       // LED meters
       const thrustMeterFill = document.getElementById("thrustMeterFill");
-      const thrustMeterText = document.getElementById("thrustMeterText");
+      const thrustTextAbove = document.getElementById("thrustTextAbove");
       const tiltMeterFill = document.getElementById("tiltMeterFill");
       const tiltMeterText = document.getElementById("tiltMeterText");
 
@@ -758,6 +780,7 @@
           0,
           0
         );
+        initStars();
       }
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
@@ -781,6 +804,7 @@
       const SCALE_HEIGHT = 8000;
 
       const MAX_SIM_ALT = 2000;
+      const STAR_ALT_THRESHOLD = 2000; // above this, show starfield
 
       const ROUND_TIME_LIMIT = 300; // 5 minutes
 
@@ -803,6 +827,49 @@
       // Meteor shower celebration
       let celebrateTime = 0;
       let meteors = [];
+
+      // Starfield
+      let stars = [];
+      let starScroll = 0;
+
+      function initStars() {
+        const w = canvas.width / window.devicePixelRatio;
+        const h = canvas.height / window.devicePixelRatio;
+        stars = [];
+        const count = 80;
+        for (let i = 0; i < count; i++) {
+          stars.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            depth: 0.4 + Math.random() * 1.1,
+          });
+        }
+      }
+
+      function updateStars(dt) {
+        // scroll relative to vertical speed for motion cue
+        if (!state) return;
+        starScroll += -state.vy * dt * 0.12;
+      }
+
+      function renderStars() {
+        const w = canvas.width / window.devicePixelRatio;
+        const h = canvas.height / window.devicePixelRatio;
+        ctx.save();
+        ctx.fillStyle = "#02030a";
+        ctx.fillRect(0, 0, w, h);
+
+        for (const s of stars) {
+          const offsetY = (s.y + starScroll * s.depth) % h;
+          const y = offsetY < 0 ? offsetY + h : offsetY;
+          const size = 1 + s.depth * 1.5;
+          const alpha = 0.3 + 0.6 * s.depth;
+          ctx.fillStyle = `rgba(220,235,255,${alpha.toFixed(2)})`;
+          ctx.fillRect(s.x, y, size, size);
+        }
+
+        ctx.restore();
+      }
 
       // Game state
       let state;
@@ -845,6 +912,7 @@
 
         celebrateTime = 0;
         meteors = [];
+        starScroll = 0;
         hideOverlay();
       }
 
@@ -1221,6 +1289,7 @@
         // Telemetry
         altitudeEl.textContent = (state.y / 1000).toFixed(3);
         rangeEl.textContent = (Math.abs(state.x) / 1000).toFixed(3);
+        distanceLZEl.textContent = Math.abs(state.x).toFixed(1);
 
         vSpeedEl.textContent = state.vy.toFixed(1);
         hSpeedEl.textContent = state.vx.toFixed(1);
@@ -1246,14 +1315,14 @@
           warningTextEl.textContent = "";
         }
 
-        // Update LED meters
+        // LED meters
         const throttlePct = parseFloat(thrustSlider.value);
         const tiltDeg = parseFloat(tiltSlider.value);
 
         // Thrust meter (vertical)
         const thrFrac = clamp(throttlePct / 100, 0, 1);
         thrustMeterFill.style.height = (thrFrac * 100).toFixed(0) + "%";
-        thrustMeterText.textContent = `${throttlePct.toFixed(0)}%`;
+        thrustTextAbove.textContent = `${throttlePct.toFixed(0)}%`;
         let thrColor;
         if (thrFrac < 0.7) thrColor = "rgba(55,219,165,0.95)";
         else if (thrFrac < 0.9) thrColor = "rgba(255,183,77,0.98)";
@@ -1261,78 +1330,103 @@
         thrustMeterFill.style.background = thrColor;
         thrustMeterFill.style.boxShadow = `0 0 12px ${thrColor}`;
 
-        // Tilt meter (horizontal)
+        // Tilt meter (horizontal, centred 0)
         const tiltFrac = clamp(Math.abs(tiltDeg) / 25, 0, 1);
-        tiltMeterFill.style.width = (tiltFrac * 100).toFixed(0) + "%";
-        tiltMeterText.textContent = `${tiltDeg.toFixed(0)}°`;
+        const half = 50;
+        const widthPct = tiltFrac * half;
+        if (tiltDeg >= 0) {
+          tiltMeterFill.style.left = "50%";
+        } else {
+          tiltMeterFill.style.left = `${50 - widthPct}%`;
+        }
+        tiltMeterFill.style.width = `${widthPct}%`;
         let tiltColor;
         if (tiltFrac < 0.7) tiltColor = "rgba(55,219,165,0.95)";
         else if (tiltFrac < 0.9) tiltColor = "rgba(255,183,77,0.98)";
         else tiltColor = "rgba(255,75,106,0.98)";
         tiltMeterFill.style.background = tiltColor;
         tiltMeterFill.style.boxShadow = `0 0 12px ${tiltColor}`;
+        tiltMeterText.textContent = `${tiltDeg.toFixed(0)}°`;
 
         if (!state.finished && state.y > 0) {
           predictImpact();
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         const w = canvas.width / window.devicePixelRatio;
         const h = canvas.height / window.devicePixelRatio;
 
-        const groundY = h - 26;
+        ctx.clearRect(0, 0, w, h);
 
-        // Atmosphere layers (cosmetic)
-        const layers = [
-          "rgba(90,140,255,0.08)",
-          "rgba(120,110,255,0.08)",
-          "rgba(180,90,200,0.08)",
-          "rgba(255,150,120,0.10)",
-        ];
-        const layerCount = layers.length;
-        for (let i = 0; i < layerCount; i++) {
-          const y0 = (groundY * i) / layerCount;
-          const y1 = (groundY * (i + 1)) / layerCount;
-          ctx.fillStyle = layers[i];
-          ctx.fillRect(0, y0, w, y1 - y0);
+        const inSpace = state.y > STAR_ALT_THRESHOLD;
+
+        const groundY = h - 26;
+        const targetXScreen = w * 0.5;
+        const scaleX = 0.04;
+
+        if (inSpace) {
+          renderStars();
+        } else {
+          // Atmosphere layers (cosmetic)
+          const layers = [
+            "rgba(90,140,255,0.08)",
+            "rgba(120,110,255,0.08)",
+            "rgba(180,90,200,0.08)",
+            "rgba(255,150,120,0.10)",
+          ];
+          const layerCount = layers.length;
+          for (let i = 0; i < layerCount; i++) {
+            const y0 = (groundY * i) / layerCount;
+            const y1 = (groundY * (i + 1)) / layerCount;
+            ctx.fillStyle = layers[i];
+            ctx.fillRect(0, y0, w, y1 - y0);
+          }
+
+          // Ground
+          ctx.fillStyle = "#151515";
+          ctx.fillRect(0, groundY, w, h - groundY);
+
+          // Target marker
+          ctx.save();
+          ctx.translate(targetXScreen, groundY);
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -18);
+          ctx.stroke();
+
+          ctx.fillStyle = "#ffeb3b";
+          ctx.beginPath();
+          ctx.moveTo(0, -18);
+          ctx.lineTo(14, -14);
+          ctx.lineTo(0, -10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         }
 
         // Meteor shower
         renderMeteors();
 
-        // Ground
-        ctx.fillStyle = "#151515";
-        ctx.fillRect(0, groundY, w, h - groundY);
-
-        const targetXScreen = w * 0.5;
-        ctx.save();
-        ctx.translate(targetXScreen, groundY);
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -18);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ffeb3b";
-        ctx.beginPath();
-        ctx.moveTo(0, -18);
-        ctx.lineTo(14, -14);
-        ctx.lineTo(0, -10);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
-        const scaleX = 0.04;
         const landerXScreen = targetXScreen + state.x * scaleX;
 
-        const altNorm = clamp(state.y / MAX_SIM_ALT, 0, 1);
-        const landerYScreen =
-          groundY - 10 - altNorm * (groundY - 40);
+        let landerYScreen;
+        if (inSpace) {
+          const spaceTop = 40;
+          const spaceBottom = h * 0.7;
+          const extraAlt = state.y - STAR_ALT_THRESHOLD;
+          const norm = clamp(extraAlt / STAR_ALT_THRESHOLD, 0, 1);
+          landerYScreen =
+            spaceBottom - norm * (spaceBottom - spaceTop);
+        } else {
+          const altNorm = clamp(state.y / MAX_SIM_ALT, 0, 1);
+          landerYScreen =
+            groundY - 10 - altNorm * (groundY - 40);
+        }
 
-        // Predicted impact marker
+        // Predicted impact marker (only if ground visible)
         if (
+          !inSpace &&
           state.predictedImpactX !== null &&
           state.y > 0 &&
           !state.finished
@@ -1359,20 +1453,23 @@
           ctx.restore();
         }
 
-        // Vertical guide
-        ctx.save();
-        ctx.strokeStyle = "rgba(55,219,165,0.4)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(landerXScreen, groundY - 10);
-        ctx.lineTo(landerXScreen, landerYScreen);
-        ctx.stroke();
-        ctx.restore();
+        // Vertical guide (if not space)
+        if (!inSpace) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(55,219,165,0.4)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(landerXScreen, groundY - 10);
+          ctx.lineTo(landerXScreen, landerYScreen);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         // Crash visual
         if (state.finished && state.crashed) {
+          const crashGroundY = inSpace ? h - 26 : groundY;
           ctx.save();
-          ctx.translate(landerXScreen, groundY - 4);
+          ctx.translate(landerXScreen, crashGroundY - 4);
 
           // Crater
           ctx.fillStyle = "#3e2723";
@@ -1525,6 +1622,49 @@
       modeEasyBtn.addEventListener("click", () => setDifficulty("easy"));
       modeMediumBtn.addEventListener("click", () => setDifficulty("medium"));
       modeHardBtn.addEventListener("click", () => setDifficulty("hard"));
+
+      // ===== FULLSCREEN TOGGLE =====
+      function isFullscreen() {
+        return (
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement
+        );
+      }
+
+      function requestFullscreen(elem) {
+        if (elem.requestFullscreen) elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+        else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen();
+        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+      }
+
+      function exitFullscreen() {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+      }
+
+      function updateFsButtonLabel() {
+        fsBtn.textContent = isFullscreen() ? "Windowed" : "Fullscreen";
+      }
+
+      fsBtn.addEventListener("click", () => {
+        if (isFullscreen()) {
+          exitFullscreen();
+        } else {
+          // try to fullscreen the whole body/app
+          requestFullscreen(document.documentElement);
+        }
+      });
+
+      document.addEventListener("fullscreenchange", updateFsButtonLabel);
+      document.addEventListener("webkitfullscreenchange", updateFsButtonLabel);
+      document.addEventListener("mozfullscreenchange", updateFsButtonLabel);
+      document.addEventListener("MSFullscreenChange", updateFsButtonLabel);
+      updateFsButtonLabel();
 
       // ========== D-PAD TOUCH HANDLING ==========
       function bindPadButton(btn, stateObj) {
@@ -1688,10 +1828,9 @@
         let acc = dt;
         while (acc > 0) {
           const d = Math.min(stepSize, acc);
-          // physics + meteors
           step(d);
           updateMeteors(d);
-          // gamepad + on-screen dpad ramping
+          updateStars(d);
           updateGamepad(d);
           updateControlRamps(d);
           acc -= d;
