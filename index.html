@@ -521,12 +521,12 @@
 
   <script>
     (() => {
-      // ========== SUPABASE CONFIG – REPLACE THESE WITH YOUR VALUES ==========
-      const SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";   // <- change this
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16dmdnc2hibWxtdHh4ZG96eGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMzExNzMsImV4cCI6MjA4MDkwNzE3M30.QUFkj9WoW_fWjFI0EDHQbOKT2EZSpVmiAC-OZuWWgxA";               // <- and this
-      const SUPABASE_TABLE = "scores";                           // table we created
+      // ========== SUPABASE CONFIG (from your project) ==========
+      const SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16dmdnc2hibWxtdHh4ZG96eGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMzExNzMsImV4cCI6MjA4MDkwNzE3M30.QUFkj9WoW_fWjFI0EDHQbOKT2EZSpVmiAC-OZuWWgxA";
+      const SUPABASE_TABLE = "scores";
 
-      // Submit a score to Supabase
       async function submitScore(entry) {
         try {
           await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
@@ -535,7 +535,7 @@
               "Content-Type": "application/json",
               apikey: SUPABASE_KEY,
               Authorization: `Bearer ${SUPABASE_KEY}`,
-              Prefer: "return=minimal"
+              Prefer: "return=minimal",
             },
             body: JSON.stringify({
               name: entry.name,
@@ -543,15 +543,14 @@
               distance_km: entry.distanceKm,
               time_sec: entry.timeSec,
               fuel_used_pct: entry.fuelUsedPct,
-              mode: entry.mode
-            })
+              mode: entry.mode,
+            }),
           });
         } catch (err) {
           console.error("Failed to submit score:", err);
         }
       }
 
-      // Fetch top N scores from Supabase
       async function fetchLeaderboard(limit = 10) {
         try {
           const res = await fetch(
@@ -559,8 +558,8 @@
             {
               headers: {
                 apikey: SUPABASE_KEY,
-                Authorization: `Bearer ${SUPABASE_KEY}`
-              }
+                Authorization: `Bearer ${SUPABASE_KEY}`,
+              },
             }
           );
           if (!res.ok) {
@@ -568,13 +567,13 @@
             return [];
           }
           const rows = await res.json();
-          return rows.map(r => ({
+          return rows.map((r) => ({
             name: r.name,
             score: r.score,
             distanceKm: Number(r.distance_km ?? 0).toFixed(3),
             timeSec: Number(r.time_sec ?? 0).toFixed(1),
             fuelUsedPct: Number(r.fuel_used_pct ?? 0).toFixed(0),
-            mode: r.mode || "unknown"
+            mode: r.mode || "unknown",
           }));
         } catch (err) {
           console.error("Failed to fetch leaderboard:", err);
@@ -595,19 +594,27 @@
         }
         const lines = list.map((entry, idx) => {
           return (
-            "#" + (idx + 1) +
-            " " + entry.name +
-            " – " + entry.score +
+            "#" +
+            (idx + 1) +
+            " " +
+            entry.name +
+            " – " +
+            entry.score +
             " pts" +
-            " (" + difficultyLabel(entry.mode) + ", " +
-            entry.distanceKm + " km, " +
-            entry.timeSec + " s, " +
-            entry.fuelUsedPct + "% fuel)"
+            " (" +
+            difficultyLabel(entry.mode) +
+            ", " +
+            entry.distanceKm +
+            " km, " +
+            entry.timeSec +
+            " s, " +
+            entry.fuelUsedPct +
+            "% fuel)"
           );
         });
         leaderboardContent.textContent = lines.join("\n");
       }
-      // =====================================================================
+      // ========================================================
 
       // === DOM refs ===
       const altitudeEl = document.getElementById("altitude");
@@ -653,24 +660,31 @@
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * window.devicePixelRatio;
         canvas.height = rect.height * window.devicePixelRatio;
-        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+        ctx.setTransform(
+          window.devicePixelRatio,
+          0,
+          0,
+          window.devicePixelRatio,
+          0,
+          0
+        );
       }
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
 
       // === Physics constants ===
-      const G = 7.5;                   // effective gravity
-      const DRY_MASS = 900;            // kg
-      const FUEL_MAX = 120;            // units
-      const FUEL_BURN_RATE = 0.8;      // units/s at 100% throttle
-      const FUEL_UNIT_MASS = 4;        // kg per fuel unit
+      const G = 7.5; // effective gravity
+      const DRY_MASS = 900; // kg
+      const FUEL_MAX = 120; // units
+      const FUEL_BURN_RATE = 0.8; // units/s at 100% throttle
+      const FUEL_UNIT_MASS = 4; // kg per fuel unit
 
       const MASS0 = DRY_MASS + FUEL_MAX * FUEL_UNIT_MASS;
 
       // Thrust: acceleration (up) at throttle 0.1 = G → hover
       const THRUST_ACCEL_FACTOR = 10 * G;
 
-      // Horizontal thrust scaling (boosted so you can actually zero ground speed)
+      // Horizontal thrust scaling
       const HORIZONTAL_THRUST_FACTOR = 2.3;
 
       const RHO0 = 0.005;
@@ -682,9 +696,9 @@
 
       // Difficulty presets (vertical AND ground speed limits)
       const difficultyPresets = {
-        easy:   { safeV: 40, crashV: 60 },
+        easy: { safeV: 40, crashV: 60 },
         medium: { safeV: 20, crashV: 40 },
-        hard:   { safeV: 3,  crashV: 6  } // "Disaster waiting to happen"
+        hard: { safeV: 3, crashV: 6 }, // "Disaster waiting to happen"
       };
 
       let difficulty = "medium";
@@ -726,7 +740,7 @@
           finished: false,
           crashed: false,
           predictedImpactX: null,
-          phase: "IDLE"
+          phase: "IDLE",
         };
       }
 
@@ -748,7 +762,6 @@
 
       resetGame();
       setDifficulty("medium");
-      // Load global leaderboard on page load
       refreshLeaderboard();
 
       function updatePhaseLabels() {
@@ -818,25 +831,31 @@
         const rho = computeDensity(alt);
         const CdA = 2.0;
 
-        // Drag accelerations (opposite velocity)
-        const a_drag_x = mass > 0
-          ? (-0.5 * rho * CdA * state.vx * Math.abs(state.vx)) / mass
-          : 0;
-        let a_drag_y = mass > 0
-          ? (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass
-          : 0;
+        // Drag
+        const a_drag_x =
+          mass > 0
+            ? (-0.5 * rho * CdA * state.vx * Math.abs(state.vx)) / mass
+            : 0;
+        let a_drag_y =
+          mass > 0
+            ? (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass
+            : 0;
 
-        // Parachute drag (vertical only, big CdA)
+        // Parachute drag
         if (state.chuteDeployed && mass > 0) {
           const chuteCdA = 18;
-          a_drag_y += (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
+          a_drag_y +=
+            (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
         }
 
-        // Thrust accelerations:
-        // Vertical: up
+        // Thrust
         const a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
-        // Horizontal: reversed so slider right → left motion
-        const a_thrust_x = -THRUST_ACCEL_FACTOR * throttle * Math.sin(thetaRad) * HORIZONTAL_THRUST_FACTOR;
+        // Note: flipped horizontally so slider right → left movement
+        const a_thrust_x =
+          -THRUST_ACCEL_FACTOR *
+          throttle *
+          Math.sin(thetaRad) *
+          HORIZONTAL_THRUST_FACTOR;
 
         // Gravity
         const a_grav_y = -G;
@@ -847,18 +866,16 @@
         state.vx += ax * dt;
         state.vy += ay * dt;
 
-        // Clamp velocities
         state.vx = clamp(state.vx, -250, 250);
         state.vy = clamp(state.vy, -250, 80);
 
         state.x += state.vx * dt;
         state.y += state.vy * dt;
 
-        // Fuel usage
+        // Fuel
         state.fuel -= FUEL_BURN_RATE * throttle * dt;
         if (state.fuel < 0) state.fuel = 0;
 
-        // Auto-cut thrust if out of fuel
         if (state.fuel <= 0 && thrustSlider.value !== "0") {
           thrustSlider.value = "0";
         }
@@ -879,22 +896,20 @@
 
         const vy = state.vy;
         const vx = state.vx;
-        const vVert = Math.abs(vy);
-        const vHoriz = Math.abs(vx);
         const range = Math.abs(state.x);
         const fuelPctRemaining = (state.fuel / FUEL_MAX) * 100;
         const fuelUsedPct = clamp(100 - fuelPctRemaining, 0, 100);
 
-        const { safeV, crashV } = difficultyPresets[difficulty];
+        const { crashV } = difficultyPresets[difficulty];
 
         let crashed = timeOut;
         let cause = timeOut ? "MISSION TIME EXPIRED" : "";
 
         if (!timeOut) {
-          if (vVert > crashV) {
+          if (Math.abs(vy) > crashV) {
             crashed = true;
             cause = `Impact too hard vertically (>${crashV} m/s)`;
-          } else if (vHoriz > crashV) {
+          } else if (Math.abs(vx) > crashV) {
             crashed = true;
             cause = `Too much ground speed (>${crashV} m/s)`;
           }
@@ -908,10 +923,16 @@
         if (crashed) {
           const title = "MISSION FAILURE";
           const reportLines = [];
-          reportLines.push(`Vertical speed: ${vy.toFixed(1)} m/s ( + = up, − = down )`);
+          reportLines.push(
+            `Vertical speed: ${vy.toFixed(1)} m/s ( + = up, − = down )`
+          );
           reportLines.push(`Ground speed: ${vx.toFixed(1)} m/s`);
-          reportLines.push(`Distance from target: ${distanceKm.toFixed(3)} km`);
-          reportLines.push(`Fuel remaining: ${fuelPctRemaining.toFixed(0)}%`);
+          reportLines.push(
+            `Distance from target: ${distanceKm.toFixed(3)} km`
+          );
+          reportLines.push(
+            `Fuel remaining: ${fuelPctRemaining.toFixed(0)}%`
+          );
           reportLines.push("");
           reportLines.push(cause);
           reportLines.push("");
@@ -930,7 +951,9 @@
         const timePenalty = clamp((timeSec - 10) * 8, 0, 400);
         const fuelPenalty = clamp(fuelUsedPct * 1.5, 0, 300);
 
-        let score = Math.round(base - distancePenalty - timePenalty - fuelPenalty);
+        let score = Math.round(
+          base - distancePenalty - timePenalty - fuelPenalty
+        );
         if (score < 0) score = 0;
 
         let title;
@@ -944,14 +967,12 @@
           distanceKm: distanceKm.toFixed(3),
           timeSec: timeSec.toFixed(1),
           fuelUsedPct: fuelUsedPct.toFixed(0),
-          mode: difficulty
+          mode: difficulty,
         };
 
-        // Start celebration
         celebrateTime = 10;
         meteors = [];
 
-        // Overlay with stats + name input
         overlayTitle.textContent = title;
         overlayBody.innerHTML = `
 <div style="margin-bottom:8px;">
@@ -968,7 +989,9 @@
     type="text"
     maxlength="20"
     placeholder="Type your name"
-    style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:${getComputedStyle(document.body).color};font-size:0.85rem;"
+    style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:${getComputedStyle(
+      document.body
+    ).color};font-size:0.85rem;"
   />
   <button id="saveScoreBtn" class="primary" style="margin-top:6px;width:100%;">Save to Leaderboard</button>
 </div>
@@ -987,12 +1010,12 @@
                 distanceKm: lastScoreData.distanceKm,
                 timeSec: lastScoreData.timeSec,
                 fuelUsedPct: lastScoreData.fuelUsedPct,
-                mode: lastScoreData.mode
+                mode: lastScoreData.mode,
               })
-              .then(() => refreshLeaderboard())
-              .finally(() => {
-                hideOverlay();
-              });
+                .then(() => refreshLeaderboard())
+                .finally(() => {
+                  hideOverlay();
+                });
             } else {
               hideOverlay();
             }
@@ -1018,16 +1041,19 @@
           const CdA = 2.0;
           const mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
 
-          const a_drag_x = mass > 0
-            ? (-0.5 * rho * CdA * vx * Math.abs(vx)) / mass
-            : 0;
-          let a_drag_y = mass > 0
-            ? (-0.5 * rho * CdA * vy * Math.abs(vy)) / mass
-            : 0;
+          const a_drag_x =
+            mass > 0
+              ? (-0.5 * rho * CdA * vx * Math.abs(vx)) / mass
+              : 0;
+          let a_drag_y =
+            mass > 0
+              ? (-0.5 * rho * CdA * vy * Math.abs(vy)) / mass
+              : 0;
 
           if (chute && mass > 0) {
             const chuteCdA = 18;
-            a_drag_y += (-0.5 * rho * chuteCdA * vy * Math.abs(vy)) / mass;
+            a_drag_y +=
+              (-0.5 * rho * chuteCdA * vy * Math.abs(vy)) / mass;
           }
 
           const a_grav_y = -G;
@@ -1056,7 +1082,7 @@
               vx: 180 + Math.random() * 120,
               vy: 180 + Math.random() * 120,
               life: 0,
-              maxLife: 0.8 + Math.random() * 0.6
+              maxLife: 0.8 + Math.random() * 0.6,
             });
           }
         }
@@ -1146,7 +1172,7 @@
           "rgba(90,140,255,0.08)",
           "rgba(120,110,255,0.08)",
           "rgba(180,90,200,0.08)",
-          "rgba(255,150,120,0.10)"
+          "rgba(255,150,120,0.10)",
         ];
         const layerCount = layers.length;
         for (let i = 0; i < layerCount; i++) {
@@ -1156,7 +1182,7 @@
           ctx.fillRect(0, y0, w, y1 - y0);
         }
 
-        // Meteor shower (over atmosphere, under lander)
+        // Meteor shower
         renderMeteors();
 
         // Ground
@@ -1186,11 +1212,17 @@
         const landerXScreen = targetXScreen + state.x * scaleX;
 
         const altNorm = clamp(state.y / MAX_SIM_ALT, 0, 1);
-        const landerYScreen = groundY - 10 - altNorm * (groundY - 40);
+        const landerYScreen =
+          groundY - 10 - altNorm * (groundY - 40);
 
         // Predicted impact marker
-        if (state.predictedImpactX !== null && state.y > 0 && !state.finished) {
-          const impactScreenX = targetXScreen + state.predictedImpactX * scaleX;
+        if (
+          state.predictedImpactX !== null &&
+          state.y > 0 &&
+          !state.finished
+        ) {
+          const impactScreenX =
+            targetXScreen + state.predictedImpactX * scaleX;
           const clampedImpactX = clamp(impactScreenX, 0, w);
 
           ctx.save();
@@ -1221,7 +1253,7 @@
         ctx.stroke();
         ctx.restore();
 
-        // If crashed, draw explosion/crater instead of normal lander
+        // Crash visual
         if (state.finished && state.crashed) {
           ctx.save();
           ctx.translate(landerXScreen, groundY - 4);
@@ -1263,7 +1295,6 @@
 
         const tiltDeg = state.thetaDeg;
         const tiltRad = (tiltDeg * Math.PI) / 180;
-        // Flip visual rotation so it "looks right" vs controls
         ctx.rotate(-tiltRad);
 
         ctx.fillStyle = "#eceff1";
@@ -1295,7 +1326,6 @@
 
         const throttle = parseFloat(thrustSlider.value) / 100;
         if (throttle > 0.02 && !state.finished) {
-          // Stronger analogue plume based on thrust level
           const flameLen = 4 + 22 * throttle;
           ctx.fillStyle = "#ffb74d";
           ctx.beginPath();
@@ -1305,7 +1335,6 @@
           ctx.closePath();
           ctx.fill();
 
-          // Inner hotter core
           ctx.fillStyle = "#ff9800";
           ctx.beginPath();
           ctx.moveTo(-1.5, 8);
@@ -1350,7 +1379,7 @@
         if (e.target === overlay) hideOverlay();
       });
 
-      // Trim button helper
+      // Trim helper
       function nudgeSlider(slider, delta) {
         const min = parseFloat(slider.min);
         const max = parseFloat(slider.max);
@@ -1396,6 +1425,155 @@
       modeMediumBtn.addEventListener("click", () => setDifficulty("medium"));
       modeHardBtn.addEventListener("click", () => setDifficulty("hard"));
 
+      // ========== GAMEPAD SUPPORT ==========
+      const BTN_FACE_BOTTOM = 0; // A (Xbox) / Cross
+      const BTN_FACE_RIGHT = 1;  // B / Circle
+      const BTN_FACE_LEFT = 2;   // X / Square
+      const BTN_FACE_TOP = 3;    // Y / Triangle
+      const BTN_SELECT = 8;
+      const BTN_START = 9;
+      const BTN_RT = 7;
+      const BTN_DPAD_UP = 12;
+      const BTN_DPAD_DOWN = 13;
+      const BTN_DPAD_LEFT = 14;
+      const BTN_DPAD_RIGHT = 15;
+
+      let prevButtons = [];
+      let thrustUpState = { prev: false, hold: 0 };
+      let thrustDownState = { prev: false, hold: 0 };
+      let tiltLeftState = { prev: false, hold: 0 };
+      let tiltRightState = { prev: false, hold: 0 };
+      let rtPrev = false;
+      let startPrev = false;
+      let selectPrev = false;
+
+      function buttonPressed(gamepad, index) {
+        const b = gamepad.buttons[index];
+        return b && (b.pressed || b.value > 0.5);
+      }
+
+      function handleLogarithmicControl(
+        dt,
+        isPressed,
+        stateObj,
+        slider,
+        isThrust,
+        sign
+      ) {
+        if (!isPressed) {
+          stateObj.prev = false;
+          stateObj.hold = 0;
+          return;
+        }
+
+        // New press → tap = 1% change
+        if (!stateObj.prev) {
+          nudgeSlider(slider, sign * 1);
+          stateObj.prev = true;
+          stateObj.hold = 0;
+          return;
+        }
+
+        // Held → ramp up speed logarithmically
+        stateObj.hold += dt;
+        const hold = stateObj.hold;
+
+        // Small deadzone before continuous motion
+        const threshold = 0.2;
+        if (hold <= threshold) return;
+
+        const t = hold - threshold;
+        const rateBase = isThrust ? 35 : 18; // thrust moves faster than tilt
+        const speed = rateBase * Math.log2(1 + t * 4); // grows over time
+
+        let val = parseFloat(slider.value);
+        val += sign * speed * dt;
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        val = clamp(val, min, max);
+        slider.value = val.toFixed(0);
+        slider.dispatchEvent(new Event("input"));
+      }
+
+      function updateGamepad(dt) {
+        if (!navigator.getGamepads) return;
+        const gps = navigator.getGamepads();
+        const gp = gps[0];
+        if (!gp) return;
+
+        // D-pad & face buttons mirrored:
+        // Thrust up    = D-pad Up OR Y
+        // Thrust down  = D-pad Down OR A
+        // Tilt left    = D-pad Left OR X
+        // Tilt right   = D-pad Right OR B
+        const thrustUpPressed =
+          buttonPressed(gp, BTN_DPAD_UP) || buttonPressed(gp, BTN_FACE_TOP);
+        const thrustDownPressed =
+          buttonPressed(gp, BTN_DPAD_DOWN) ||
+          buttonPressed(gp, BTN_FACE_BOTTOM);
+        const tiltLeftPressed =
+          buttonPressed(gp, BTN_DPAD_LEFT) || buttonPressed(gp, BTN_FACE_LEFT);
+        const tiltRightPressed =
+          buttonPressed(gp, BTN_DPAD_RIGHT) ||
+          buttonPressed(gp, BTN_FACE_RIGHT);
+
+        // Logarithmic controls
+        handleLogarithmicControl(
+          dt,
+          thrustUpPressed,
+          thrustUpState,
+          thrustSlider,
+          true,
+          +1
+        );
+        handleLogarithmicControl(
+          dt,
+          thrustDownPressed,
+          thrustDownState,
+          thrustSlider,
+          true,
+          -1
+        );
+        handleLogarithmicControl(
+          dt,
+          tiltLeftPressed,
+          tiltLeftState,
+          tiltSlider,
+          false,
+          -1
+        );
+        handleLogarithmicControl(
+          dt,
+          tiltRightPressed,
+          tiltRightState,
+          tiltSlider,
+          false,
+          +1
+        );
+
+        // Right trigger = chute
+        const rtPressed = buttonPressed(gp, BTN_RT);
+        if (rtPressed && !rtPrev) {
+          chuteBtn.click();
+        }
+        rtPrev = rtPressed;
+
+        // Start = start mission
+        const startPressed = buttonPressed(gp, BTN_START);
+        if (startPressed && !startPrev) {
+          startBtn.click();
+        }
+        startPrev = startPressed;
+
+        // Select/Back = reset
+        const selectPressed = buttonPressed(gp, BTN_SELECT);
+        if (selectPressed && !selectPrev) {
+          resetBtn.click();
+        }
+        selectPrev = selectPressed;
+      }
+      // ========== END GAMEPAD SUPPORT ==========
+
       let lastTs = null;
 
       function loop(ts) {
@@ -1407,8 +1585,11 @@
         let acc = dt;
         while (acc > 0) {
           const d = Math.min(stepSize, acc);
+          // physics + meteors
           step(d);
           updateMeteors(d);
+          // gamepad each sim step for smooth ramping
+          updateGamepad(d);
           acc -= d;
         }
 
