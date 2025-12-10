@@ -153,15 +153,8 @@
       display: block;
     }
 
-    /* Controls */
+    /* Controls container */
     #controls {
-      display: grid;
-      grid-template-columns: 1.1fr 1.1fr;
-      gap: 8px;
-      align-items: stretch;
-    }
-
-    .control-col {
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -186,77 +179,6 @@
       justify-content: space-between;
       align-items: baseline;
       gap: 4px;
-    }
-
-    .ctrl-value {
-      font-variant-numeric: tabular-nums;
-    }
-
-    .slider-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 2px;
-    }
-
-    .trim-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: 1px solid #293145;
-      background: #151b27;
-      color: var(--text);
-      font-size: 0.85rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      flex-shrink: 0;
-      cursor: pointer;
-    }
-
-    .trim-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-
-    input[type="range"] {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      height: 22px;
-      background: transparent;
-    }
-
-    input[type="range"]::-webkit-slider-runnable-track {
-      height: 6px;
-      background: #151b27;
-      border-radius: 999px;
-    }
-    input[type="range"]::-moz-range-track {
-      height: 6px;
-      background: #151b27;
-      border-radius: 999px;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid #0f172a;
-      margin-top: -8px;
-      box-shadow: 0 0 0 3px var(--accent-soft);
-    }
-    input[type="range"]::-moz-range-thumb {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid #0f172a;
-      box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
     .btn-row {
@@ -313,7 +235,148 @@
       font-weight: 600;
     }
 
-    /* Message overlay */
+    /* D-pad panel */
+    #padPanel {
+      gap: 6px;
+    }
+
+    .tilt-meter-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .pad-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dpad-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .dpad-row {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .dpad-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 30% 30%, #283347, #0b0f18);
+      border: 1px solid #38445c;
+      color: #e0f7fa;
+      font-size: 1rem;
+      text-shadow: 0 0 6px rgba(0, 255, 255, 0.9);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+      flex: 0 0 auto;
+    }
+
+    .dpad-center {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      border: 1px dashed #283347;
+      background: radial-gradient(circle at 30% 30%, #151b27, #05070b);
+    }
+
+    .dpad-btn-active,
+    .dpad-btn:active {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-soft);
+    }
+
+    .pad-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .chute-big {
+      width: 96px;
+      height: 72px;
+      border-radius: 16px;
+      background: radial-gradient(circle at 30% 20%, #ffeb3b, #ff5722);
+      color: #1b1308;
+      border: 1px solid #ffcc80;
+      font-weight: 700;
+      text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8);
+      flex: 0 0 auto;
+    }
+
+    .thrust-meter-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* LED meters */
+    .led-meter {
+      position: relative;
+      background: #020309;
+      border-radius: 4px;
+      border: 1px solid #283347;
+      overflow: hidden;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.8);
+    }
+
+    .led-meter-horizontal {
+      width: 100%;
+      height: 16px;
+    }
+
+    .led-meter-vertical {
+      width: 28px;
+      height: 90px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 3px 0;
+    }
+
+    .led-fill {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      background: linear-gradient(180deg, #37dba5, #4fc3f7);
+      box-shadow: 0 0 12px rgba(0, 255, 200, 0.8);
+    }
+
+    .led-meter-horizontal .led-fill {
+      height: 100%;
+      width: 0%;
+    }
+
+    .led-meter-vertical .led-fill {
+      width: 100%;
+      height: 0%;
+    }
+
+    .led-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #e0f7fa;
+      text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+      pointer-events: none;
+    }
+
+    /* Overlay */
     #overlay {
       position: fixed;
       inset: 0;
@@ -431,82 +494,75 @@
 
     <!-- Controls -->
     <div id="controls">
-      <div class="control-col">
-        <div class="ctrl-group">
-          <div class="ctrl-label">
-            <span>Thrust</span>
-            <span class="ctrl-value"><span id="thrustValue">0</span>%</span>
-          </div>
-          <div class="slider-row">
-            <button id="thrustMinus" class="trim-btn">−</button>
-            <input
-              id="thrustSlider"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value="0"
-            />
-            <button id="thrustPlus" class="trim-btn">+</button>
-          </div>
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
-            10% ≈ hover at start (tilt 0°, chute off). 0% = free fall.
+      <!-- Start / Reset -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">
+          <span>Mission Control</span>
+        </div>
+        <div class="btn-row">
+          <button id="startBtn" class="primary">Start Mission</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+      </div>
+
+      <!-- D-pad + chute + LED meters -->
+      <div class="ctrl-group" id="padPanel">
+        <div class="tilt-meter-row">
+          <div class="tele-label">Tilt</div>
+          <div class="led-meter led-meter-horizontal">
+            <div id="tiltMeterFill" class="led-fill"></div>
+            <div id="tiltMeterText" class="led-text">0°</div>
           </div>
         </div>
 
-        <div class="ctrl-group">
-          <div class="ctrl-label">
-            <span>Actions</span>
+        <div class="pad-row">
+          <div class="dpad-grid">
+            <div class="dpad-row">
+              <div style="width:24px;"></div>
+              <button id="dpadUp" class="dpad-btn">▲</button>
+              <div style="width:24px;"></div>
+            </div>
+            <div class="dpad-row">
+              <button id="dpadLeft" class="dpad-btn">◀</button>
+              <div class="dpad-center"></div>
+              <button id="dpadRight" class="dpad-btn">▶</button>
+            </div>
+            <div class="dpad-row">
+              <div style="width:24px;"></div>
+              <button id="dpadDown" class="dpad-btn">▼</button>
+              <div style="width:24px;"></div>
+            </div>
           </div>
-          <div class="btn-row">
-            <button id="startBtn" class="primary">Start Mission</button>
-            <button id="resetBtn">Reset</button>
-          </div>
-          <div class="btn-row" style="margin-top:4px;">
-            <button id="chuteBtn">Deploy Chute</button>
+
+          <div class="pad-right">
+            <button id="chuteBtn" class="chute-big">CHUTE</button>
+            <div class="thrust-meter-wrapper">
+              <div class="tele-label">Thrust</div>
+              <div class="led-meter led-meter-vertical">
+                <div id="thrustMeterFill" class="led-fill"></div>
+                <div id="thrustMeterText" class="led-text">0%</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="control-col">
-        <div class="ctrl-group">
-          <div class="ctrl-label">
-            <span>Tilt (Side Thrust)</span>
-            <span class="ctrl-value"><span id="tiltValue">0</span>°</span>
-          </div>
-          <div class="slider-row">
-            <button id="tiltMinus" class="trim-btn">−</button>
-            <input
-              id="tiltSlider"
-              type="range"
-              min="-25"
-              max="25"
-              step="1"
-              value="0"
-            />
-            <button id="tiltPlus" class="trim-btn">+</button>
-          </div>
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
-            Slide → to tilt left & push left on screen; ← to tilt right & push right.
-          </div>
+      <!-- Info & Difficulty -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">
+          <span>Info & Difficulty</span>
         </div>
-
-        <div class="ctrl-group">
-          <div class="ctrl-label">
-            <span>Info & Difficulty</span>
-          </div>
-          <div style="font-size:0.78rem;color:var(--muted);line-height:1.3;">
-            • Vertical speed: + = up, − = down.<br />
-            • 10% thrust ≈ hover at initial mass.<br />
-            • Chute: huge vertical drag; usable only in a mid-altitude
-              “safe window”.<br />
-            • Land softly and close to the flag for best scores.
-          </div>
-          <div class="btn-row" style="margin-top:6px;">
-            <button id="modeEasy" class="mode-btn">Easy</button>
-            <button id="modeMedium" class="mode-btn active">Medium</button>
-            <button id="modeHard" class="mode-btn">Disaster</button>
-          </div>
+        <div style="font-size:0.78rem;color:var(--muted);line-height:1.3;">
+          • Vertical speed: + = up, − = down.<br />
+          • 10% thrust ≈ hover at initial mass.<br />
+          • Chute: huge vertical drag; usable only in a mid-altitude
+            “safe window”.<br />
+          • Land softly and close to the flag for best scores.
+        </div>
+        <div class="btn-row" style="margin-top:6px;">
+          <button id="modeEasy" class="mode-btn">Easy</button>
+          <button id="modeMedium" class="mode-btn active">Medium</button>
+          <button id="modeHard" class="mode-btn">Disaster</button>
         </div>
       </div>
     </div>
@@ -523,6 +579,26 @@
         Loading leaderboard...
       </div>
     </div>
+  </div>
+
+  <!-- Hidden sliders used internally for values -->
+  <div style="display:none;">
+    <input
+      id="thrustSlider"
+      type="range"
+      min="0"
+      max="100"
+      step="1"
+      value="0"
+    />
+    <input
+      id="tiltSlider"
+      type="range"
+      min="-25"
+      max="25"
+      step="1"
+      value="0"
+    />
   </div>
 
   <!-- Overlay for landing report + name entry -->
@@ -615,7 +691,7 @@
           return;
         }
         let html = '<ol class="lb-list">';
-        list.forEach((entry, idx) => {
+        list.forEach((entry) => {
           html += `<li><strong>${entry.name}</strong> – ${entry.score} pts<br><span style="font-size:0.75rem;color:var(--muted);">${difficultyLabel(entry.mode)}, ${entry.distanceKm} km, ${entry.timeSec} s, ${entry.fuelUsedPct}% fuel</span></li>`;
         });
         html += "</ol>";
@@ -636,18 +712,9 @@
       const missionTimeEl = document.getElementById("missionTime");
       const warningTextEl = document.getElementById("warningText");
 
-      const thrustSlider = document.getElementById("thrustSlider");
-      const tiltSlider = document.getElementById("tiltSlider");
-      const thrustValueEl = document.getElementById("thrustValue");
-      const tiltValueEl = document.getElementById("tiltValue");
       const startBtn = document.getElementById("startBtn");
       const resetBtn = document.getElementById("resetBtn");
       const chuteBtn = document.getElementById("chuteBtn");
-
-      const thrustMinus = document.getElementById("thrustMinus");
-      const thrustPlus = document.getElementById("thrustPlus");
-      const tiltMinus = document.getElementById("tiltMinus");
-      const tiltPlus = document.getElementById("tiltPlus");
 
       const modeEasyBtn = document.getElementById("modeEasy");
       const modeMediumBtn = document.getElementById("modeMedium");
@@ -662,6 +729,22 @@
       const overlayTitle = document.getElementById("overlay-title");
       const overlayBody = document.getElementById("overlay-body");
       const overlayClose = document.getElementById("overlay-close");
+
+      // Hidden sliders for internal numeric values
+      const thrustSlider = document.getElementById("thrustSlider");
+      const tiltSlider = document.getElementById("tiltSlider");
+
+      // LED meters
+      const thrustMeterFill = document.getElementById("thrustMeterFill");
+      const thrustMeterText = document.getElementById("thrustMeterText");
+      const tiltMeterFill = document.getElementById("tiltMeterFill");
+      const tiltMeterText = document.getElementById("tiltMeterText");
+
+      // D-pad buttons
+      const dpadUp = document.getElementById("dpadUp");
+      const dpadDown = document.getElementById("dpadDown");
+      const dpadLeft = document.getElementById("dpadLeft");
+      const dpadRight = document.getElementById("dpadRight");
 
       function resizeCanvas() {
         const rect = canvas.getBoundingClientRect();
@@ -754,8 +837,6 @@
         state = createInitialState();
         thrustSlider.value = "0";
         tiltSlider.value = "0";
-        thrustValueEl.textContent = "0";
-        tiltValueEl.textContent = "0";
 
         startBtn.disabled = false;
         startBtn.textContent = "Start Mission";
@@ -825,8 +906,6 @@
         const throttle = throttlePct / 100;
         const tiltDeg = parseFloat(tiltSlider.value);
         state.thetaDeg = tiltDeg;
-        thrustValueEl.textContent = throttlePct.toFixed(0);
-        tiltValueEl.textContent = tiltDeg.toFixed(0);
 
         const alt = state.y;
         const vDownMag = Math.max(0, -state.vy);
@@ -859,7 +938,7 @@
 
         // Thrust
         const a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
-        // Note: flipped horizontally so slider right → left movement
+        // Note: flipped horizontally so right tilt pushes left on the screen
         const a_thrust_x =
           -THRUST_ACCEL_FACTOR *
           throttle *
@@ -1167,6 +1246,32 @@
           warningTextEl.textContent = "";
         }
 
+        // Update LED meters
+        const throttlePct = parseFloat(thrustSlider.value);
+        const tiltDeg = parseFloat(tiltSlider.value);
+
+        // Thrust meter (vertical)
+        const thrFrac = clamp(throttlePct / 100, 0, 1);
+        thrustMeterFill.style.height = (thrFrac * 100).toFixed(0) + "%";
+        thrustMeterText.textContent = `${throttlePct.toFixed(0)}%`;
+        let thrColor;
+        if (thrFrac < 0.7) thrColor = "rgba(55,219,165,0.95)";
+        else if (thrFrac < 0.9) thrColor = "rgba(255,183,77,0.98)";
+        else thrColor = "rgba(255,75,106,0.98)";
+        thrustMeterFill.style.background = thrColor;
+        thrustMeterFill.style.boxShadow = `0 0 12px ${thrColor}`;
+
+        // Tilt meter (horizontal)
+        const tiltFrac = clamp(Math.abs(tiltDeg) / 25, 0, 1);
+        tiltMeterFill.style.width = (tiltFrac * 100).toFixed(0) + "%";
+        tiltMeterText.textContent = `${tiltDeg.toFixed(0)}°`;
+        let tiltColor;
+        if (tiltFrac < 0.7) tiltColor = "rgba(55,219,165,0.95)";
+        else if (tiltFrac < 0.9) tiltColor = "rgba(255,183,77,0.98)";
+        else tiltColor = "rgba(255,75,106,0.98)";
+        tiltMeterFill.style.background = tiltColor;
+        tiltMeterFill.style.boxShadow = `0 0 12px ${tiltColor}`;
+
         if (!state.finished && state.y > 0) {
           predictImpact();
         }
@@ -1304,8 +1409,8 @@
         ctx.save();
         ctx.translate(landerXScreen, landerYScreen);
 
-        const tiltDeg = state.thetaDeg;
-        const tiltRad = (tiltDeg * Math.PI) / 180;
+        const tiltDegNow = state.thetaDeg;
+        const tiltRad = (tiltDegNow * Math.PI) / 180;
         ctx.rotate(-tiltRad);
 
         ctx.fillStyle = "#eceff1";
@@ -1335,7 +1440,7 @@
         ctx.lineTo(10, 14);
         ctx.stroke();
 
-        const throttle = parseFloat(thrustSlider.value) / 100;
+        const throttle = throttlePct / 100;
         if (throttle > 0.02 && !state.finished) {
           const flameLen = 4 + 22 * throttle;
           ctx.fillStyle = "#ffb74d";
@@ -1390,29 +1495,6 @@
         if (e.target === overlay) hideOverlay();
       });
 
-      // Trim helper
-      function nudgeSlider(slider, delta) {
-        const min = parseFloat(slider.min);
-        const max = parseFloat(slider.max);
-        let v = parseFloat(slider.value);
-        v = clamp(v + delta, min, max);
-        slider.value = v.toString();
-        slider.dispatchEvent(new Event("input"));
-      }
-
-      thrustSlider.addEventListener("input", () => {
-        thrustValueEl.textContent = thrustSlider.value;
-      });
-
-      tiltSlider.addEventListener("input", () => {
-        tiltValueEl.textContent = tiltSlider.value;
-      });
-
-      thrustMinus.addEventListener("click", () => nudgeSlider(thrustSlider, -1));
-      thrustPlus.addEventListener("click", () => nudgeSlider(thrustSlider, +1));
-      tiltMinus.addEventListener("click", () => nudgeSlider(tiltSlider, -1));
-      tiltPlus.addEventListener("click", () => nudgeSlider(tiltSlider, +1));
-
       // Start button: start / pause / resume
       startBtn.addEventListener("click", () => {
         if (state.finished) return; // ignore once mission over
@@ -1424,7 +1506,7 @@
         } else {
           // resume or start fresh
           state.playing = true;
-          startBtn.textContent = state.time === 0 ? "Pause" : "Pause";
+          startBtn.textContent = "Pause";
           chuteBtn.disabled = false;
         }
       });
@@ -1444,7 +1526,27 @@
       modeMediumBtn.addEventListener("click", () => setDifficulty("medium"));
       modeHardBtn.addEventListener("click", () => setDifficulty("hard"));
 
-      // ========== GAMEPAD SUPPORT ==========
+      // ========== D-PAD TOUCH HANDLING ==========
+      function bindPadButton(btn, stateObj) {
+        const setDown = (e) => {
+          e.preventDefault();
+          stateObj.touch = true;
+          btn.classList.add("dpad-btn-active");
+        };
+        const setUp = (e) => {
+          e.preventDefault();
+          stateObj.touch = false;
+          btn.classList.remove("dpad-btn-active");
+        };
+        ["mousedown", "touchstart"].forEach((ev) =>
+          btn.addEventListener(ev, setDown)
+        );
+        ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((ev) =>
+          btn.addEventListener(ev, setUp)
+        );
+      }
+
+      // ========== GAMEPAD + LOGARITHMIC CONTROL ==========
       const BTN_FACE_BOTTOM = 0; // A (Xbox) / Cross
       const BTN_FACE_RIGHT = 1;  // B / Circle
       const BTN_FACE_LEFT = 2;   // X / Square
@@ -1457,27 +1559,29 @@
       const BTN_DPAD_LEFT = 14;
       const BTN_DPAD_RIGHT = 15;
 
-      let thrustUpState = { prev: false, hold: 0 };
-      let thrustDownState = { prev: false, hold: 0 };
-      let tiltLeftState = { prev: false, hold: 0 };
-      let tiltRightState = { prev: false, hold: 0 };
+      let thrustUpState = { pad: false, touch: false, prev: false, hold: 0 };
+      let thrustDownState = { pad: false, touch: false, prev: false, hold: 0 };
+      let tiltLeftState = { pad: false, touch: false, prev: false, hold: 0 };
+      let tiltRightState = { pad: false, touch: false, prev: false, hold: 0 };
+
       let rtPrev = false;
       let startPrev = false;
       let selectPrev = false;
+
+      // Attach D-pad touch behaviour
+      bindPadButton(dpadUp, thrustUpState);
+      bindPadButton(dpadDown, thrustDownState);
+      bindPadButton(dpadLeft, tiltLeftState);
+      bindPadButton(dpadRight, tiltRightState);
 
       function buttonPressed(gamepad, index) {
         const b = gamepad.buttons[index];
         return b && (b.pressed || b.value > 0.5);
       }
 
-      function handleLogarithmicControl(
-        dt,
-        isPressed,
-        stateObj,
-        slider,
-        isThrust,
-        sign
-      ) {
+      function handleLogarithmicControl(dt, stateObj, slider, isThrust, sign) {
+        const isPressed = stateObj.pad || stateObj.touch;
+
         if (!isPressed) {
           stateObj.prev = false;
           stateObj.hold = 0;
@@ -1486,7 +1590,12 @@
 
         // New press → tap = 1% change
         if (!stateObj.prev) {
-          nudgeSlider(slider, sign * 1);
+          let v = parseFloat(slider.value);
+          v += sign * 1;
+          const min = parseFloat(slider.min);
+          const max = parseFloat(slider.max);
+          v = clamp(v, min, max);
+          slider.value = v.toFixed(0);
           stateObj.prev = true;
           stateObj.hold = 0;
           return;
@@ -1509,7 +1618,6 @@
         const max = parseFloat(slider.max);
         val = clamp(val, min, max);
         slider.value = val.toFixed(0);
-        slider.dispatchEvent(new Event("input"));
       }
 
       function updateGamepad(dt) {
@@ -1534,39 +1642,10 @@
           buttonPressed(gp, BTN_DPAD_RIGHT) ||
           buttonPressed(gp, BTN_FACE_RIGHT);
 
-        // Logarithmic controls
-        handleLogarithmicControl(
-          dt,
-          thrustUpPressed,
-          thrustUpState,
-          thrustSlider,
-          true,
-          +1
-        );
-        handleLogarithmicControl(
-          dt,
-          thrustDownPressed,
-          thrustDownState,
-          thrustSlider,
-          true,
-          -1
-        );
-        handleLogarithmicControl(
-          dt,
-          tiltLeftPressed,
-          tiltLeftState,
-          tiltSlider,
-          false,
-          -1
-        );
-        handleLogarithmicControl(
-          dt,
-          tiltRightPressed,
-          tiltRightState,
-          tiltSlider,
-          false,
-          +1
-        );
+        thrustUpState.pad = thrustUpPressed;
+        thrustDownState.pad = thrustDownPressed;
+        tiltLeftState.pad = tiltLeftPressed;
+        tiltRightState.pad = tiltRightPressed;
 
         // Right trigger = chute
         const rtPressed = buttonPressed(gp, BTN_RT);
@@ -1589,7 +1668,14 @@
         }
         selectPrev = selectPressed;
       }
-      // ========== END GAMEPAD SUPPORT ==========
+
+      function updateControlRamps(dt) {
+        handleLogarithmicControl(dt, thrustUpState, thrustSlider, true, +1);
+        handleLogarithmicControl(dt, thrustDownState, thrustSlider, true, -1);
+        handleLogarithmicControl(dt, tiltLeftState, tiltSlider, false, -1);
+        handleLogarithmicControl(dt, tiltRightState, tiltSlider, false, +1);
+      }
+      // ========== END GAMEPAD/D-PAD SUPPORT ==========
 
       let lastTs = null;
 
@@ -1605,8 +1691,9 @@
           // physics + meteors
           step(d);
           updateMeteors(d);
-          // gamepad each sim step for smooth ramping
+          // gamepad + on-screen dpad ramping
           updateGamepad(d);
+          updateControlRamps(d);
           acc -= d;
         }
 
