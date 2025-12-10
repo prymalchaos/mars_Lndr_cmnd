@@ -194,13 +194,13 @@
     }
 
     .trim-btn {
-      width: 26px;
-      height: 26px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: 1px solid #293145;
       background: #151b27;
       color: var(--text);
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -368,7 +368,7 @@
           </div>
         </div>
         <div>
-          <div class="tele-label">Horizontal Speed</div>
+          <div class="tele-label">Ground Speed</div>
           <div class="tele-value">
             <span id="hSpeed">0</span> m/s
           </div>
@@ -573,8 +573,7 @@
       resizeCanvas();
 
       // === Physics constants ===
-      // Stronger effective gravity for a snappier feel (not strictly Mars-realistic)
-      const G = 7.5;                   // m/s^2 effective gravity
+      const G = 7.5;                   // effective gravity for snappy feel
       const DRY_MASS = 900;            // kg
       const FUEL_MAX = 120;            // units
       const FUEL_BURN_RATE = 0.8;      // units/s at 100% throttle
@@ -582,25 +581,20 @@
 
       const MASS0 = DRY_MASS + FUEL_MAX * FUEL_UNIT_MASS;
 
-      // Thrust model: acceleration from thrust (upward) is:
-      // a_thrust_vert = THRUST_ACCEL_FACTOR * throttle * cos(theta)
-      // We choose THRUST_ACCEL_FACTOR so that at throttle = 0.1 and theta = 0,
-      // a_thrust_vert = G => hover.
+      // Thrust: acceleration (up) at throttle 0.1 = G → hover
       const THRUST_ACCEL_FACTOR = 10 * G;
 
-      // Horizontal thrust scaling (high = very twitchy sideways control)
-      const HORIZONTAL_THRUST_FACTOR = 1.8;
+      // Horizontal thrust scaling (boosted so you can actually zero ground speed)
+      const HORIZONTAL_THRUST_FACTOR = 2.3;
 
       const RHO0 = 0.005;
       const SCALE_HEIGHT = 8000;
 
       const MAX_SIM_ALT = 2000;
 
-      const CRASH_H_SPEED = 4; // horizontal crash threshold (all modes)
-
       const ROUND_TIME_LIMIT = 300; // 5 minutes
 
-      // Difficulty presets (vertical speed limits)
+      // Difficulty presets (vertical AND ground speed limits)
       const difficultyPresets = {
         easy:   { safeV: 40, crashV: 60 },
         medium: { safeV: 20, crashV: 40 },
@@ -765,7 +759,7 @@
         state.vx += ax * dt;
         state.vy += ay * dt;
 
-        // Clamp velocities to keep it gamey but responsive
+        // Clamp velocities
         state.vx = clamp(state.vx, -250, 250);
         state.vy = clamp(state.vy, -250, 80);
 
@@ -812,30 +806,22 @@
           if (vVert > crashV) {
             crashed = true;
             cause = `Impact too hard vertically (>${crashV} m/s)`;
-          } else if (vHoriz > CRASH_H_SPEED) {
+          } else if (vHoriz > crashV) {
             crashed = true;
-            cause = "Too much sideways motion";
+            cause = `Too much ground speed (>${crashV} m/s)`;
           }
         }
 
         state.crashed = crashed;
 
-        // Scoring:
-        //  - Base: 1000
-        //  - Distance penalty: scaled with range
-        //  - Time penalty: longer = fewer points
-        //  - Fuel penalty: more used = fewer points (efficiency)
-        let score = 0;
-        let title;
         const distanceKm = range / 1000;
         const timeSec = state.time;
 
         if (crashed) {
-          title = "MISSION FAILURE";
-
+          const title = "MISSION FAILURE";
           const reportLines = [];
           reportLines.push(`Vertical speed: ${vy.toFixed(1)} m/s ( + = up, − = down )`);
-          reportLines.push(`Horizontal speed: ${vx.toFixed(1)} m/s`);
+          reportLines.push(`Ground speed: ${vx.toFixed(1)} m/s`);
           reportLines.push(`Distance from target: ${distanceKm.toFixed(3)} km`);
           reportLines.push(`Fuel remaining: ${fuelPctRemaining.toFixed(0)}%`);
           reportLines.push("");
@@ -852,14 +838,14 @@
 
         // Successful landing scoring
         const base = 1000;
+        const distancePenalty = clamp(distanceKm * 400, 0, 600);
+        const timePenalty = clamp((timeSec - 10) * 8, 0, 400);
+        const fuelPenalty = clamp(fuelUsedPct * 1.5, 0, 300);
 
-        const distancePenalty = clamp(distanceKm * 400, 0, 600);       // 0–600
-        const timePenalty = clamp((timeSec - 10) * 8, 0, 400);         // encourage decisive landing
-        const fuelPenalty = clamp(fuelUsedPct * 1.5, 0, 300);          // use less fuel for higher score
-
-        score = Math.round(base - distancePenalty - timePenalty - fuelPenalty);
+        let score = Math.round(base - distancePenalty - timePenalty - fuelPenalty);
         if (score < 0) score = 0;
 
+        let title;
         if (score > 900) title = "PERFECT TOUCHDOWN";
         else if (score > 700) title = "NOMINAL LANDING";
         else if (score > 450) title = "MARGINAL LANDING";
@@ -877,7 +863,7 @@
         celebrateTime = 10;
         meteors = [];
 
-        // Build overlay with stats + name input
+        // Overlay with stats + name input
         overlayTitle.textContent = title;
         overlayBody.innerHTML = `
 <div style="margin-bottom:8px;">
@@ -901,7 +887,6 @@
         `.trim();
         overlay.style.display = "flex";
 
-        // Attach save handler
         const saveBtn = document.getElementById("saveScoreBtn");
         const nameInput = document.getElementById("nameInput");
         if (saveBtn && nameInput) {
@@ -976,7 +961,6 @@
           celebrateTime -= dt;
           if (celebrateTime < 0) celebrateTime = 0;
 
-          // Spawn a few new meteors each frame
           for (let i = 0; i < 4; i++) {
             meteors.push({
               x: Math.random() * w,
@@ -989,10 +973,9 @@
           }
         }
 
-        // Update and prune
         const next = [];
         for (const m of meteors) {
-          m.x -= m.vx * dt;  // from top-right down-left
+          m.x -= m.vx * dt;
           m.y += m.vy * dt;
           m.life += dt;
           if (m.life < m.maxLife) {
@@ -1014,7 +997,7 @@
           const trailY = m.y - m.vy * 0.05;
 
           const tNorm = clamp(m.life / m.maxLife, 0, 1);
-          const r = Math.round(255);
+          const r = 255;
           const gCol = Math.round(200 + 55 * (1 - tNorm));
           const bCol = Math.round(120 * (1 - tNorm));
           ctx.strokeStyle = `rgba(${r},${gCol},${bCol},${1 - tNorm * 0.7})`;
@@ -1085,7 +1068,7 @@
           ctx.fillRect(0, y0, w, y1 - y0);
         }
 
-        // Meteor shower (draw over atmosphere, under lander)
+        // Meteor shower (over atmosphere, under lander)
         renderMeteors();
 
         // Ground
@@ -1117,7 +1100,7 @@
         const altNorm = clamp(state.y / MAX_SIM_ALT, 0, 1);
         const landerYScreen = groundY - 10 - altNorm * (groundY - 40);
 
-        // Predicted impact
+        // Predicted impact marker
         if (state.predictedImpactX !== null && state.y > 0 && !state.finished) {
           const impactScreenX = targetXScreen + state.predictedImpactX * scaleX;
           const clampedImpactX = clamp(impactScreenX, 0, w);
@@ -1140,7 +1123,7 @@
           ctx.restore();
         }
 
-        // Vertical guide line
+        // Vertical guide
         ctx.save();
         ctx.strokeStyle = "rgba(55,219,165,0.4)";
         ctx.lineWidth = 1;
@@ -1150,13 +1133,50 @@
         ctx.stroke();
         ctx.restore();
 
-        // Lander
+        // If crashed, draw explosion/crater instead of normal lander
+        if (state.finished && state.crashed) {
+          ctx.save();
+          ctx.translate(landerXScreen, groundY - 4);
+
+          // Crater
+          ctx.fillStyle = "#3e2723";
+          ctx.beginPath();
+          ctx.ellipse(0, 6, 14, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Explosion glow
+          const grad = ctx.createRadialGradient(0, -4, 0, 0, -4, 20);
+          grad.addColorStop(0, "rgba(255, 234, 0, 0.9)");
+          grad.addColorStop(0.4, "rgba(255, 160, 0, 0.7)");
+          grad.addColorStop(1, "rgba(121, 85, 72, 0)");
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(0, -4, 20, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Debris
+          ctx.fillStyle = "#ffc107";
+          for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const dx = Math.cos(angle) * (8 + i);
+            const dy = Math.sin(angle) * (5 + i * 0.5);
+            ctx.beginPath();
+            ctx.arc(dx, -4 + dy, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.restore();
+          return;
+        }
+
+        // Normal lander
         ctx.save();
         ctx.translate(landerXScreen, landerYScreen);
 
         const tiltDeg = state.thetaDeg;
         const tiltRad = (tiltDeg * Math.PI) / 180;
-        ctx.rotate(tiltRad);
+        // Flip visual rotation so it "looks right" vs controls
+        ctx.rotate(-tiltRad);
 
         ctx.fillStyle = "#eceff1";
         ctx.strokeStyle = "#263238";
@@ -1187,12 +1207,22 @@
 
         const throttle = parseFloat(thrustSlider.value) / 100;
         if (throttle > 0.02 && !state.finished) {
-          const flameLen = 6 + 10 * throttle;
+          // Stronger analogue plume based on thrust level
+          const flameLen = 4 + 22 * throttle;
           ctx.fillStyle = "#ffb74d";
           ctx.beginPath();
           ctx.moveTo(-3, 8);
           ctx.lineTo(3, 8);
           ctx.lineTo(0, 8 + flameLen);
+          ctx.closePath();
+          ctx.fill();
+
+          // Inner hotter core
+          ctx.fillStyle = "#ff9800";
+          ctx.beginPath();
+          ctx.moveTo(-1.5, 8);
+          ctx.lineTo(1.5, 8);
+          ctx.lineTo(0, 8 + flameLen * 0.7);
           ctx.closePath();
           ctx.fill();
         }
