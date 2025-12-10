@@ -356,7 +356,6 @@
       height: 100%;
       width: 0%;
       left: 50%;
-      transform-origin: center;
     }
 
     .led-meter-vertical .led-fill {
@@ -632,7 +631,7 @@
 
   <script>
     (() => {
-      // ========== SUPABASE CONFIG (from your project) ==========
+      // ========== SUPABASE CONFIG ==========
       const SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16dmdnc2hibWxtdHh4ZG96eGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMzExNzMsImV4cCI6MjA4MDkwNzE3M30.QUFkj9WoW_fWjFI0EDHQbOKT2EZSpVmiAC-OZuWWgxA";
@@ -717,7 +716,6 @@
         html += "</ol>";
         leaderboardContent.innerHTML = html;
       }
-      // ========================================================
 
       // === DOM refs ===
       const altitudeEl = document.getElementById("altitude");
@@ -752,17 +750,14 @@
       const overlayBody = document.getElementById("overlay-body");
       const overlayClose = document.getElementById("overlay-close");
 
-      // Hidden sliders for internal numeric values
       const thrustSlider = document.getElementById("thrustSlider");
       const tiltSlider = document.getElementById("tiltSlider");
 
-      // LED meters
       const thrustMeterFill = document.getElementById("thrustMeterFill");
       const thrustTextAbove = document.getElementById("thrustTextAbove");
       const tiltMeterFill = document.getElementById("tiltMeterFill");
       const tiltMeterText = document.getElementById("tiltMeterText");
 
-      // D-pad buttons
       const dpadUp = document.getElementById("dpadUp");
       const dpadDown = document.getElementById("dpadDown");
       const dpadLeft = document.getElementById("dpadLeft");
@@ -786,33 +781,27 @@
       resizeCanvas();
 
       // === Physics constants ===
-      const G = 7.5; // effective gravity
-      const DRY_MASS = 900; // kg
-      const FUEL_MAX = 120; // units
-      const FUEL_BURN_RATE = 0.8; // units/s at 100% throttle
-      const FUEL_UNIT_MASS = 4; // kg per fuel unit
+      const G = 7.5;
+      const DRY_MASS = 900;
+      const FUEL_MAX = 120;
+      const FUEL_BURN_RATE = 0.8;
+      const FUEL_UNIT_MASS = 4;
 
-      const MASS0 = DRY_MASS + FUEL_MAX * FUEL_UNIT_MASS;
-
-      // Thrust: acceleration (up) at throttle 0.1 = G → hover
       const THRUST_ACCEL_FACTOR = 10 * G;
-
-      // Horizontal thrust scaling
       const HORIZONTAL_THRUST_FACTOR = 2.3;
 
       const RHO0 = 0.005;
       const SCALE_HEIGHT = 8000;
 
       const MAX_SIM_ALT = 2000;
-      const STAR_ALT_THRESHOLD = 2000; // above this, show starfield
+      const STAR_ALT_THRESHOLD = 2000;
 
-      const ROUND_TIME_LIMIT = 300; // 5 minutes
+      const ROUND_TIME_LIMIT = 300;
 
-      // Difficulty presets (vertical AND ground speed limits)
       const difficultyPresets = {
         easy: { safeV: 40, crashV: 60 },
         medium: { safeV: 20, crashV: 40 },
-        hard: { safeV: 3, crashV: 6 }, // "Disaster waiting to happen"
+        hard: { safeV: 3, crashV: 6 },
       };
 
       let difficulty = "medium";
@@ -824,7 +813,6 @@
         modeHardBtn.classList.toggle("active", mode === "hard");
       }
 
-      // Meteor shower celebration
       let celebrateTime = 0;
       let meteors = [];
 
@@ -847,7 +835,6 @@
       }
 
       function updateStars(dt) {
-        // scroll relative to vertical speed for motion cue
         if (!state) return;
         starScroll += -state.vy * dt * 0.12;
       }
@@ -877,8 +864,8 @@
 
       function createInitialState() {
         const baseVx = 50;
-        const variability = 0.15; // ±15%
-        const factor = 1 + (Math.random() * 2 - 1) * variability; // 0.85–1.15
+        const variability = 0.15;
+        const factor = 1 + (Math.random() * 2 - 1) * variability;
         const dir = Math.random() < 0.5 ? -1 : 1;
         const initialVx = dir * baseVx * factor;
 
@@ -978,7 +965,6 @@
         const alt = state.y;
         const vDownMag = Math.max(0, -state.vy);
 
-        // Chute window: mid-altitude and moving down fast enough
         state.chuteSafe = alt > 900 && alt < 1800 && vDownMag > 20 && vDownMag < 200;
 
         const mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
@@ -987,7 +973,6 @@
         const rho = computeDensity(alt);
         const CdA = 2.0;
 
-        // Drag
         const a_drag_x =
           mass > 0
             ? (-0.5 * rho * CdA * state.vx * Math.abs(state.vx)) / mass
@@ -997,23 +982,19 @@
             ? (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass
             : 0;
 
-        // Parachute drag
         if (state.chuteDeployed && mass > 0) {
           const chuteCdA = 18;
           a_drag_y +=
             (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
         }
 
-        // Thrust
         const a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
-        // Note: flipped horizontally so right tilt pushes left on the screen
         const a_thrust_x =
           -THRUST_ACCEL_FACTOR *
           throttle *
           Math.sin(thetaRad) *
           HORIZONTAL_THRUST_FACTOR;
 
-        // Gravity
         const a_grav_y = -G;
 
         const ax = a_thrust_x + a_drag_x;
@@ -1028,7 +1009,6 @@
         state.x += state.vx * dt;
         state.y += state.vy * dt;
 
-        // Fuel
         state.fuel -= FUEL_BURN_RATE * throttle * dt;
         if (state.fuel < 0) state.fuel = 0;
 
@@ -1102,7 +1082,6 @@
           return;
         }
 
-        // Successful landing scoring
         const base = 1000;
         const distancePenalty = clamp(distanceKm * 400, 0, 600);
         const timePenalty = clamp((timeSec - 10) * 8, 0, 400);
@@ -1146,9 +1125,7 @@
     type="text"
     maxlength="20"
     placeholder="Type your name"
-    style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:${getComputedStyle(
-      document.body
-    ).color};font-size:0.85rem;"
+    style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:#f5f7ff;font-size:0.85rem;"
   />
   <button id="saveScoreBtn" class="primary" style="margin-top:6px;width:100%;">Save to Leaderboard</button>
 </div>
@@ -1286,7 +1263,6 @@
       function render() {
         updatePhaseLabels();
 
-        // Telemetry
         altitudeEl.textContent = (state.y / 1000).toFixed(3);
         rangeEl.textContent = (Math.abs(state.x) / 1000).toFixed(3);
         distanceLZEl.textContent = Math.abs(state.x).toFixed(1);
@@ -1315,11 +1291,9 @@
           warningTextEl.textContent = "";
         }
 
-        // LED meters
         const throttlePct = parseFloat(thrustSlider.value);
         const tiltDeg = parseFloat(tiltSlider.value);
 
-        // Thrust meter (vertical)
         const thrFrac = clamp(throttlePct / 100, 0, 1);
         thrustMeterFill.style.height = (thrFrac * 100).toFixed(0) + "%";
         thrustTextAbove.textContent = `${throttlePct.toFixed(0)}%`;
@@ -1330,7 +1304,6 @@
         thrustMeterFill.style.background = thrColor;
         thrustMeterFill.style.boxShadow = `0 0 12px ${thrColor}`;
 
-        // Tilt meter (horizontal, centred 0)
         const tiltFrac = clamp(Math.abs(tiltDeg) / 25, 0, 1);
         const half = 50;
         const widthPct = tiltFrac * half;
@@ -1366,7 +1339,6 @@
         if (inSpace) {
           renderStars();
         } else {
-          // Atmosphere layers (cosmetic)
           const layers = [
             "rgba(90,140,255,0.08)",
             "rgba(120,110,255,0.08)",
@@ -1381,11 +1353,9 @@
             ctx.fillRect(0, y0, w, y1 - y0);
           }
 
-          // Ground
           ctx.fillStyle = "#151515";
           ctx.fillRect(0, groundY, w, h - groundY);
 
-          // Target marker
           ctx.save();
           ctx.translate(targetXScreen, groundY);
           ctx.strokeStyle = "#ffffff";
@@ -1405,7 +1375,6 @@
           ctx.restore();
         }
 
-        // Meteor shower
         renderMeteors();
 
         const landerXScreen = targetXScreen + state.x * scaleX;
@@ -1424,7 +1393,6 @@
             groundY - 10 - altNorm * (groundY - 40);
         }
 
-        // Predicted impact marker (only if ground visible)
         if (
           !inSpace &&
           state.predictedImpactX !== null &&
@@ -1453,7 +1421,6 @@
           ctx.restore();
         }
 
-        // Vertical guide (if not space)
         if (!inSpace) {
           ctx.save();
           ctx.strokeStyle = "rgba(55,219,165,0.4)";
@@ -1465,19 +1432,33 @@
           ctx.restore();
         }
 
-        // Crash visual
+        // Off-screen direction arrows (lander off-screen horizontally)
+        if (landerXScreen < -10) {
+          ctx.save();
+          ctx.fillStyle = "#ffeb3b";
+          ctx.font = "14px system-ui";
+          ctx.textAlign = "left";
+          ctx.fillText("◀", 6, h - 6);
+          ctx.restore();
+        } else if (landerXScreen > w + 10) {
+          ctx.save();
+          ctx.fillStyle = "#ffeb3b";
+          ctx.font = "14px system-ui";
+          ctx.textAlign = "right";
+          ctx.fillText("▶", w - 6, h - 6);
+          ctx.restore();
+        }
+
         if (state.finished && state.crashed) {
           const crashGroundY = inSpace ? h - 26 : groundY;
           ctx.save();
           ctx.translate(landerXScreen, crashGroundY - 4);
 
-          // Crater
           ctx.fillStyle = "#3e2723";
           ctx.beginPath();
           ctx.ellipse(0, 6, 14, 5, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          // Explosion glow
           const grad = ctx.createRadialGradient(0, -4, 0, 0, -4, 20);
           grad.addColorStop(0, "rgba(255, 234, 0, 0.9)");
           grad.addColorStop(0.4, "rgba(255, 160, 0, 0.7)");
@@ -1487,7 +1468,6 @@
           ctx.arc(0, -4, 20, 0, Math.PI * 2);
           ctx.fill();
 
-          // Debris
           ctx.fillStyle = "#ffc107";
           for (let i = 0; i < 8; i++) {
             const angle = (Math.PI * 2 * i) / 8;
@@ -1592,16 +1572,14 @@
         if (e.target === overlay) hideOverlay();
       });
 
-      // Start button: start / pause / resume
+      // Start / pause / resume
       startBtn.addEventListener("click", () => {
-        if (state.finished) return; // ignore once mission over
+        if (state.finished) return;
 
         if (state.playing) {
-          // pause
           state.playing = false;
           startBtn.textContent = "Resume";
         } else {
-          // resume or start fresh
           state.playing = true;
           startBtn.textContent = "Pause";
           chuteBtn.disabled = false;
@@ -1655,7 +1633,6 @@
         if (isFullscreen()) {
           exitFullscreen();
         } else {
-          // try to fullscreen the whole body/app
           requestFullscreen(document.documentElement);
         }
       });
@@ -1686,11 +1663,10 @@
         );
       }
 
-      // ========== GAMEPAD + LOGARITHMIC CONTROL ==========
-      const BTN_FACE_BOTTOM = 0; // A (Xbox) / Cross
-      const BTN_FACE_RIGHT = 1;  // B / Circle
-      const BTN_FACE_LEFT = 2;   // X / Square
-      const BTN_FACE_TOP = 3;    // Y / Triangle
+      const BTN_FACE_BOTTOM = 0;
+      const BTN_FACE_RIGHT = 1;
+      const BTN_FACE_LEFT = 2;
+      const BTN_FACE_TOP = 3;
       const BTN_SELECT = 8;
       const BTN_START = 9;
       const BTN_RT = 7;
@@ -1708,7 +1684,6 @@
       let startPrev = false;
       let selectPrev = false;
 
-      // Attach D-pad touch behaviour
       bindPadButton(dpadUp, thrustUpState);
       bindPadButton(dpadDown, thrustDownState);
       bindPadButton(dpadLeft, tiltLeftState);
@@ -1728,7 +1703,6 @@
           return;
         }
 
-        // New press → tap = 1% change
         if (!stateObj.prev) {
           let v = parseFloat(slider.value);
           v += sign * 1;
@@ -1741,7 +1715,6 @@
           return;
         }
 
-        // Held → ramp up speed logarithmically
         stateObj.hold += dt;
         const hold = stateObj.hold;
 
@@ -1749,7 +1722,7 @@
         if (hold <= threshold) return;
 
         const t = hold - threshold;
-        const rateBase = isThrust ? 35 : 18; // thrust moves faster than tilt
+        const rateBase = isThrust ? 35 : 18;
         const speed = rateBase * Math.log2(1 + t * 4);
 
         let val = parseFloat(slider.value);
@@ -1766,11 +1739,6 @@
         const gp = gps[0];
         if (!gp) return;
 
-        // D-pad & face buttons mirrored:
-        // Thrust up    = D-pad Up OR Y
-        // Thrust down  = D-pad Down OR A
-        // Tilt left    = D-pad Left OR X
-        // Tilt right   = D-pad Right OR B
         const thrustUpPressed =
           buttonPressed(gp, BTN_DPAD_UP) || buttonPressed(gp, BTN_FACE_TOP);
         const thrustDownPressed =
@@ -1787,21 +1755,18 @@
         tiltLeftState.pad = tiltLeftPressed;
         tiltRightState.pad = tiltRightPressed;
 
-        // Right trigger = chute
         const rtPressed = buttonPressed(gp, BTN_RT);
         if (rtPressed && !rtPrev) {
           chuteBtn.click();
         }
         rtPrev = rtPressed;
 
-        // Start = start / pause / resume
         const startPressed = buttonPressed(gp, BTN_START);
         if (startPressed && !startPrev) {
           startBtn.click();
         }
         startPrev = startPressed;
 
-        // Select/Back = reset
         const selectPressed = buttonPressed(gp, BTN_SELECT);
         if (selectPressed && !selectPrev) {
           resetBtn.click();
@@ -1815,7 +1780,6 @@
         handleLogarithmicControl(dt, tiltLeftState, tiltSlider, false, -1);
         handleLogarithmicControl(dt, tiltRightState, tiltSlider, false, +1);
       }
-      // ========== END GAMEPAD/D-PAD SUPPORT ==========
 
       let lastTs = null;
 
