@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mars Descent Controller</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: dark;
+      --bg: #05070b;
+      --panel: #10141f;
+      --accent: #37dba5;
+      --accent-soft: #37dba555;
+      --danger: #ff4b6a;
+      --warn: #ffb74d;
+      --text: #f5f7ff;
+      --muted: #9ba1bf;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #1a2b3f 0, #05070b 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    .card {
+      background: rgba(8, 11, 20, 0.95);
+      border-radius: 10px;
+      border: 1px solid #1d2333;
+      padding: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Telemetry */
+    #telemetry {
+      display: grid;
+      grid-template-columns: 1.4fr 1.2fr 1.4fr;
+      gap: 6px;
+      font-size: 0.78rem;
+    }
+    .tele-block { display: flex; flex-direction: column; gap: 4px; }
+
+    .tele-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .tele-value {
+      font-size: 0.9rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      font-size: 0.75rem;
+      padding: 3px 6px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #131a2b;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .status-dot.entry    { background: #4fc3f7; }
+    .status-dot.chute    { background: var(--warn); }
+    .status-dot.powered  { background: var(--accent); }
+    .status-dot.landing  { background: #e3f2fd; }
+    .status-dot.crashed  { background: var(--danger); }
+
+    .bar {
+      height: 6px;
+      background: #151b27;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #37dba5, #4fc3f7);
+      transition: width 0.08s linear;
+    }
+
+    .bar-range-safe {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      background: rgba(76, 175, 80, 0.3);
+      border-radius: 999px;
+    }
+
+    /* Visualisation */
+    #viz-card {
+      height: 36vh;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #viz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    #viz {
+      flex: 1;
+      background: radial-gradient(circle at top, #111b2e 0, #060910 55%);
+      border-radius: 8px;
+      border: 1px solid #1e2536;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Controls */
+    #controls {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .control-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ctrl-group {
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid #1d2333;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ctrl-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .ctrl-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .trim-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1px solid #293145;
+      background: #151b27;
+      color: var(--text);
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .trim-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 22px;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      background: #151b27;
+      border-radius: 999px;
+    }
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      background: #151b27;
+      border-radius: 999px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #0f172a;
+      margin-top: -8px;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #0f172a;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      border-radius: 999px;
+      border: 1px solid #293145;
+      background: #151b27;
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 8px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #4fc3f7);
+      color: #020308;
+      border-color: transparent;
+      font-weight: 600;
+    }
+
+    button.danger {
+      background: #2b1219;
+      color: #ffcdd2;
+      border-color: #ff8a80;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .mode-btn {
+      flex: 1;
+      font-size: 0.7rem;
+      padding: 6px 4px;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--accent), #4fc3f7);
+      color: #020308;
+      border-color: transparent;
+      font-weight: 600;
+    }
+
+    /* Message overlay */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10;
+    }
+
+    #overlay-card {
+      max-width: 420px;
+      width: 100%;
+      background: #05070b;
+      border-radius: 12px;
+      border: 1px solid #283347;
+      padding: 14px;
+    }
+
+    #overlay-title {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    #overlay-body {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      white-space: pre-line;
+    }
+
+    #overlay button {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Telemetry -->
+    <div id="telemetry" class="card">
+      <div class="tele-block">
+        <div>
+          <div class="tele-label">Altitude</div>
+          <div class="tele-value"><span id="altitude">0.0</span> km</div>
+        </div>
+        <div>
+          <div class="tele-label">Range to Target</div>
+          <div class="tele-value"><span id="range">0.0</span> km</div>
+        </div>
+      </div>
+
+      <div class="tele-block">
+        <div>
+          <div class="tele-label">Vertical Speed (m/s)</div>
+          <div class="tele-value">
+            <span id="vSpeed">0</span>
+          </div>
+        </div>
+        <div>
+          <div class="tele-label">Horizontal Speed</div>
+          <div class="tele-value">
+            <span id="hSpeed">0</span> m/s
+          </div>
+        </div>
+        <div class="bar" style="margin-top:2px;">
+          <div class="bar-range-safe" style="left:20%;right:60%;"></div>
+          <div id="vSpeedBar" class="bar-fill"></div>
+        </div>
+      </div>
+
+      <div class="tele-block">
+        <div>
+          <div class="tele-label">Fuel</div>
+          <div class="tele-value">
+            <span id="fuelPct">100</span>%
+          </div>
+          <div class="bar">
+            <div id="fuelBar" class="bar-fill" style="width:100%;"></div>
+          </div>
+        </div>
+        <div style="margin-top:4px;">
+          <div class="tele-label">Phase</div>
+          <div class="status" id="status">
+            <span class="status-dot entry" id="statusDot"></span>
+            <span id="statusLabel">Idle</span>
+          </div>
+        </div>
+        <div style="margin-top:4px;">
+          <div class="tele-label">Mission Time</div>
+          <div class="tele-value"><span id="missionTime">0.0</span> s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visualisation -->
+    <div id="viz-card" class="card">
+      <div id="viz-header">
+        <span>Side View – Atmosphere & Impact ✕</span>
+        <span id="warningText"></span>
+      </div>
+      <div id="viz">
+        <canvas id="vizCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+      <div class="control-col">
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Thrust</span>
+            <span class="ctrl-value"><span id="thrustValue">0</span>%</span>
+          </div>
+          <div class="slider-row">
+            <button id="thrustMinus" class="trim-btn">−</button>
+            <input
+              id="thrustSlider"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+            />
+            <button id="thrustPlus" class="trim-btn">+</button>
+          </div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
+            10% ≈ hover at start (tilt 0°, chute off). 0% = free fall.
+          </div>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Actions</span>
+          </div>
+          <div class="btn-row">
+            <button id="startBtn" class="primary">Start Mission</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+          <div class="btn-row" style="margin-top:4px;">
+            <button id="chuteBtn">Deploy Chute</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-col">
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Tilt (Side Thrust)</span>
+            <span class="ctrl-value"><span id="tiltValue">0</span>°</span>
+          </div>
+          <div class="slider-row">
+            <button id="tiltMinus" class="trim-btn">−</button>
+            <input
+              id="tiltSlider"
+              type="range"
+              min="-25"
+              max="25"
+              step="1"
+              value="0"
+            />
+            <button id="tiltPlus" class="trim-btn">+</button>
+          </div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
+            Slide → to tilt left & push left on screen; ← to tilt right & push right.
+          </div>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Info & Difficulty</span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);line-height:1.3;">
+            • Vertical speed: + = up, − = down.<br />
+            • 10% thrust ≈ hover at initial mass.<br />
+            • Chute: huge vertical drag; usable only in a mid-altitude
+              “safe window”.<br />
+            • Land softly and close to the flag for best scores.
+          </div>
+          <div class="btn-row" style="margin-top:6px;">
+            <button id="modeEasy" class="mode-btn">Easy</button>
+            <button id="modeMedium" class="mode-btn active">Medium</button>
+            <button id="modeHard" class="mode-btn">Disaster</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div id="leaderboardCard" class="card">
+      <div class="ctrl-label">
+        <span>Mission Leaderboard</span>
+      </div>
+      <div
+        id="leaderboardContent"
+        style="font-size:0.78rem;color:var(--muted);line-height:1.3;margin-top:4px;"
+      >
+        No successful landings yet.
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay for landing report + name entry -->
+  <div id="overlay">
+    <div id="overlay-card">
+      <div id="overlay-title"></div>
+      <div id="overlay-body"></div>
+      <button id="overlay-close" class="primary">Close</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "marsLanderScoresV1";
+
+      // === DOM refs ===
+      const altitudeEl = document.getElementById("altitude");
+      const rangeEl = document.getElementById("range");
+      const vSpeedEl = document.getElementById("vSpeed");
+      const hSpeedEl = document.getElementById("hSpeed");
+      const vSpeedBarEl = document.getElementById("vSpeedBar");
+      const fuelPctEl = document.getElementById("fuelPct");
+      const fuelBarEl = document.getElementById("fuelBar");
+      const statusLabelEl = document.getElementById("statusLabel");
+      const statusDotEl = document.getElementById("statusDot");
+      const missionTimeEl = document.getElementById("missionTime");
+      const warningTextEl = document.getElementById("warningText");
+
+      const thrustSlider = document.getElementById("thrustSlider");
+      const tiltSlider = document.getElementById("tiltSlider");
+      const thrustValueEl = document.getElementById("thrustValue");
+      const tiltValueEl = document.getElementById("tiltValue");
+      const startBtn = document.getElementById("startBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const chuteBtn = document.getElementById("chuteBtn");
+
+      const thrustMinus = document.getElementById("thrustMinus");
+      const thrustPlus = document.getElementById("thrustPlus");
+      const tiltMinus = document.getElementById("tiltMinus");
+      const tiltPlus = document.getElementById("tiltPlus");
+
+      const modeEasyBtn = document.getElementById("modeEasy");
+      const modeMediumBtn = document.getElementById("modeMedium");
+      const modeHardBtn = document.getElementById("modeHard");
+
+      const leaderboardContent = document.getElementById("leaderboardContent");
+
+      const canvas = document.getElementById("vizCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlay-title");
+      const overlayBody = document.getElementById("overlay-body");
+      const overlayClose = document.getElementById("overlay-close");
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      // === Physics constants ===
+      // Stronger effective gravity for a snappier feel (not strictly Mars-realistic)
+      const G = 7.5;                   // m/s^2 effective gravity
+      const DRY_MASS = 900;            // kg
+      const FUEL_MAX = 120;            // units
+      const FUEL_BURN_RATE = 0.8;      // units/s at 100% throttle
+      const FUEL_UNIT_MASS = 4;        // kg per fuel unit
+
+      const MASS0 = DRY_MASS + FUEL_MAX * FUEL_UNIT_MASS;
+
+      // Thrust model: acceleration from thrust (upward) is:
+      // a_thrust_vert = THRUST_ACCEL_FACTOR * throttle * cos(theta)
+      // We choose THRUST_ACCEL_FACTOR so that at throttle = 0.1 and theta = 0,
+      // a_thrust_vert = G => hover.
+      const THRUST_ACCEL_FACTOR = 10 * G;
+
+      // Horizontal thrust scaling (high = very twitchy sideways control)
+      const HORIZONTAL_THRUST_FACTOR = 1.8;
+
+      const RHO0 = 0.005;
+      const SCALE_HEIGHT = 8000;
+
+      const MAX_SIM_ALT = 2000;
+
+      const CRASH_H_SPEED = 4; // horizontal crash threshold (all modes)
+
+      const ROUND_TIME_LIMIT = 300; // 5 minutes
+
+      // Difficulty presets (vertical speed limits)
+      const difficultyPresets = {
+        easy:   { safeV: 40, crashV: 60 },
+        medium: { safeV: 20, crashV: 40 },
+        hard:   { safeV: 3,  crashV: 6  } // "Disaster waiting to happen"
+      };
+
+      let difficulty = "medium";
+
+      function difficultyLabel(mode) {
+        if (mode === "easy") return "Easy";
+        if (mode === "medium") return "Medium";
+        return "Disaster Waiting to Happen";
+      }
+
+      function setDifficulty(mode) {
+        difficulty = mode;
+        modeEasyBtn.classList.toggle("active", mode === "easy");
+        modeMediumBtn.classList.toggle("active", mode === "medium");
+        modeHardBtn.classList.toggle("active", mode === "hard");
+      }
+
+      // Meteor shower celebration
+      let celebrateTime = 0;
+      let meteors = [];
+
+      // Game state
+      let state;
+      let lastScoreData = null;
+
+      function createInitialState() {
+        return {
+          x: -900,
+          y: 1700,
+          vx: 50,
+          vy: -85,
+          thetaDeg: 0,
+          fuel: FUEL_MAX,
+          chuteDeployed: false,
+          chuteSafe: false,
+          time: 0,
+          playing: false,
+          finished: false,
+          crashed: false,
+          predictedImpactX: null,
+          phase: "IDLE"
+        };
+      }
+
+      function resetGame() {
+        state = createInitialState();
+        thrustSlider.value = "0";
+        tiltSlider.value = "0";
+        thrustValueEl.textContent = "0";
+        tiltValueEl.textContent = "0";
+
+        startBtn.disabled = false;
+        chuteBtn.disabled = true;
+        warningTextEl.textContent = "";
+
+        celebrateTime = 0;
+        meteors = [];
+        hideOverlay();
+      }
+
+      resetGame();
+      setDifficulty("medium");
+      renderLeaderboard(loadScores());
+
+      function updatePhaseLabels() {
+        let phaseLabel = "Idle";
+        let dotClass = "entry";
+
+        if (!state.playing && !state.finished) {
+          phaseLabel = "Ready";
+        } else if (state.finished && state.crashed) {
+          phaseLabel = "Crash";
+          dotClass = "crashed";
+        } else if (state.finished && !state.crashed) {
+          phaseLabel = "Touchdown";
+          dotClass = "landing";
+        } else {
+          const alt = state.y;
+          if (alt > 1200) {
+            phaseLabel = "Entry";
+            dotClass = "entry";
+          } else if (state.chuteDeployed) {
+            phaseLabel = "Chute";
+            dotClass = "chute";
+          } else if (alt > 400) {
+            phaseLabel = "Powered Descent";
+            dotClass = "powered";
+          } else {
+            phaseLabel = "Landing";
+            dotClass = "landing";
+          }
+        }
+
+        state.phase = phaseLabel;
+        statusLabelEl.textContent = phaseLabel;
+        statusDotEl.className = "status-dot " + dotClass;
+      }
+
+      function clamp(v, min, max) {
+        return v < min ? min : v > max ? max : v;
+      }
+
+      function computeDensity(alt) {
+        if (alt <= 0) return 0;
+        return RHO0 * Math.exp(-alt / SCALE_HEIGHT);
+      }
+
+      function step(dt) {
+        if (!state.playing || state.finished) return;
+
+        state.time += dt;
+
+        const throttlePct = parseFloat(thrustSlider.value);
+        const throttle = throttlePct / 100;
+        const tiltDeg = parseFloat(tiltSlider.value);
+        state.thetaDeg = tiltDeg;
+        thrustValueEl.textContent = throttlePct.toFixed(0);
+        tiltValueEl.textContent = tiltDeg.toFixed(0);
+
+        const alt = state.y;
+        const vDownMag = Math.max(0, -state.vy);
+
+        // Chute window: mid-altitude and moving down fast enough
+        state.chuteSafe = alt > 900 && alt < 1800 && vDownMag > 20 && vDownMag < 200;
+
+        const mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
+
+        const thetaRad = (state.thetaDeg * Math.PI) / 180;
+        const rho = computeDensity(alt);
+        const CdA = 2.0;
+
+        // Drag accelerations (opposite velocity)
+        const a_drag_x = mass > 0
+          ? (-0.5 * rho * CdA * state.vx * Math.abs(state.vx)) / mass
+          : 0;
+        let a_drag_y = mass > 0
+          ? (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass
+          : 0;
+
+        // Parachute drag (vertical only, big CdA)
+        if (state.chuteDeployed && mass > 0) {
+          const chuteCdA = 18;
+          a_drag_y += (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
+        }
+
+        // Thrust accelerations:
+        // Vertical: up
+        const a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
+        // Horizontal: reversed so slider right → left motion
+        const a_thrust_x = -THRUST_ACCEL_FACTOR * throttle * Math.sin(thetaRad) * HORIZONTAL_THRUST_FACTOR;
+
+        // Gravity
+        const a_grav_y = -G;
+
+        const ax = a_thrust_x + a_drag_x;
+        const ay = a_thrust_y + a_drag_y + a_grav_y;
+
+        state.vx += ax * dt;
+        state.vy += ay * dt;
+
+        // Clamp velocities to keep it gamey but responsive
+        state.vx = clamp(state.vx, -250, 250);
+        state.vy = clamp(state.vy, -250, 80);
+
+        state.x += state.vx * dt;
+        state.y += state.vy * dt;
+
+        // Fuel usage
+        state.fuel -= FUEL_BURN_RATE * throttle * dt;
+        if (state.fuel < 0) state.fuel = 0;
+
+        // Auto-cut thrust if out of fuel
+        if (state.fuel <= 0 && thrustSlider.value !== "0") {
+          thrustSlider.value = "0";
+        }
+
+        if (state.time > ROUND_TIME_LIMIT && !state.finished) {
+          finishLanding(true);
+        }
+
+        if (state.y <= 0 && !state.finished) {
+          state.y = 0;
+          finishLanding(false);
+        }
+      }
+
+      function finishLanding(timeOut) {
+        state.finished = true;
+        state.playing = false;
+
+        const vy = state.vy;
+        const vx = state.vx;
+        const vVert = Math.abs(vy);
+        const vHoriz = Math.abs(vx);
+        const range = Math.abs(state.x);
+        const fuelPctRemaining = (state.fuel / FUEL_MAX) * 100;
+        const fuelUsedPct = clamp(100 - fuelPctRemaining, 0, 100);
+
+        const { safeV, crashV } = difficultyPresets[difficulty];
+
+        let crashed = timeOut;
+        let cause = timeOut ? "MISSION TIME EXPIRED" : "";
+
+        if (!timeOut) {
+          if (vVert > crashV) {
+            crashed = true;
+            cause = `Impact too hard vertically (>${crashV} m/s)`;
+          } else if (vHoriz > CRASH_H_SPEED) {
+            crashed = true;
+            cause = "Too much sideways motion";
+          }
+        }
+
+        state.crashed = crashed;
+
+        // Scoring:
+        //  - Base: 1000
+        //  - Distance penalty: scaled with range
+        //  - Time penalty: longer = fewer points
+        //  - Fuel penalty: more used = fewer points (efficiency)
+        let score = 0;
+        let title;
+        const distanceKm = range / 1000;
+        const timeSec = state.time;
+
+        if (crashed) {
+          title = "MISSION FAILURE";
+
+          const reportLines = [];
+          reportLines.push(`Vertical speed: ${vy.toFixed(1)} m/s ( + = up, − = down )`);
+          reportLines.push(`Horizontal speed: ${vx.toFixed(1)} m/s`);
+          reportLines.push(`Distance from target: ${distanceKm.toFixed(3)} km`);
+          reportLines.push(`Fuel remaining: ${fuelPctRemaining.toFixed(0)}%`);
+          reportLines.push("");
+          reportLines.push(cause);
+          reportLines.push("");
+          reportLines.push("Score: 0");
+
+          showOverlay(title, reportLines.join("\n"));
+
+          startBtn.disabled = true;
+          chuteBtn.disabled = true;
+          return;
+        }
+
+        // Successful landing scoring
+        const base = 1000;
+
+        const distancePenalty = clamp(distanceKm * 400, 0, 600);       // 0–600
+        const timePenalty = clamp((timeSec - 10) * 8, 0, 400);         // encourage decisive landing
+        const fuelPenalty = clamp(fuelUsedPct * 1.5, 0, 300);          // use less fuel for higher score
+
+        score = Math.round(base - distancePenalty - timePenalty - fuelPenalty);
+        if (score < 0) score = 0;
+
+        if (score > 900) title = "PERFECT TOUCHDOWN";
+        else if (score > 700) title = "NOMINAL LANDING";
+        else if (score > 450) title = "MARGINAL LANDING";
+        else title = "BARELY WALKING AWAY";
+
+        lastScoreData = {
+          score,
+          distanceKm: distanceKm.toFixed(3),
+          timeSec: timeSec.toFixed(1),
+          fuelUsedPct: fuelUsedPct.toFixed(0),
+          mode: difficulty
+        };
+
+        // Start celebration
+        celebrateTime = 10;
+        meteors = [];
+
+        // Build overlay with stats + name input
+        overlayTitle.textContent = title;
+        overlayBody.innerHTML = `
+<div style="margin-bottom:8px;">
+  <div>Score: <strong>${score}</strong></div>
+  <div>Distance from pin: ${lastScoreData.distanceKm} km</div>
+  <div>Mission time: ${lastScoreData.timeSec} s</div>
+  <div>Fuel used: ${lastScoreData.fuelUsedPct}%</div>
+  <div>Mode: ${difficultyLabel(lastScoreData.mode)}</div>
+</div>
+<div style="margin-top:4px;">
+  <label for="nameInput" style="font-size:0.8rem;display:block;margin-bottom:4px;">Commander name</label>
+  <input
+    id="nameInput"
+    type="text"
+    maxlength="20"
+    placeholder="Type your name"
+    style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:${getComputedStyle(document.body).color};font-size:0.85rem;"
+  />
+  <button id="saveScoreBtn" class="primary" style="margin-top:6px;width:100%;">Save to Leaderboard</button>
+</div>
+        `.trim();
+        overlay.style.display = "flex";
+
+        // Attach save handler
+        const saveBtn = document.getElementById("saveScoreBtn");
+        const nameInput = document.getElementById("nameInput");
+        if (saveBtn && nameInput) {
+          saveBtn.addEventListener("click", () => {
+            const name = nameInput.value.trim() || "Anonymous";
+            if (lastScoreData) {
+              const list = loadScores();
+              list.push({
+                name,
+                score: lastScoreData.score,
+                distanceKm: lastScoreData.distanceKm,
+                timeSec: lastScoreData.timeSec,
+                fuelUsedPct: lastScoreData.fuelUsedPct,
+                mode: lastScoreData.mode,
+                ts: Date.now()
+              });
+              const sorted = list.sort((a, b) => b.score - a.score).slice(0, 10);
+              saveScores(sorted);
+              renderLeaderboard(sorted);
+            }
+            hideOverlay();
+          });
+        }
+
+        startBtn.disabled = true;
+        chuteBtn.disabled = true;
+      }
+
+      function predictImpact() {
+        let x = state.x;
+        let y = state.y;
+        let vx = state.vx;
+        let vy = state.vy;
+        let chute = state.chuteDeployed;
+        let t = 0;
+        const dt = 0.1;
+        const maxT = 120;
+
+        while (y > 0 && t < maxT) {
+          const rho = computeDensity(y);
+          const CdA = 2.0;
+          const mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
+
+          const a_drag_x = mass > 0
+            ? (-0.5 * rho * CdA * vx * Math.abs(vx)) / mass
+            : 0;
+          let a_drag_y = mass > 0
+            ? (-0.5 * rho * CdA * vy * Math.abs(vy)) / mass
+            : 0;
+
+          if (chute && mass > 0) {
+            const chuteCdA = 18;
+            a_drag_y += (-0.5 * rho * chuteCdA * vy * Math.abs(vy)) / mass;
+          }
+
+          const a_grav_y = -G;
+
+          vx += a_drag_x * dt;
+          vy += (a_drag_y + a_grav_y) * dt;
+          x += vx * dt;
+          y += vy * dt;
+          t += dt;
+        }
+        state.predictedImpactX = x;
+      }
+
+      function updateMeteors(dt) {
+        const w = canvas.width / window.devicePixelRatio;
+        const h = canvas.height / window.devicePixelRatio;
+
+        if (celebrateTime > 0) {
+          celebrateTime -= dt;
+          if (celebrateTime < 0) celebrateTime = 0;
+
+          // Spawn a few new meteors each frame
+          for (let i = 0; i < 4; i++) {
+            meteors.push({
+              x: Math.random() * w,
+              y: Math.random() * (h * 0.4),
+              vx: 180 + Math.random() * 120,
+              vy: 180 + Math.random() * 120,
+              life: 0,
+              maxLife: 0.8 + Math.random() * 0.6
+            });
+          }
+        }
+
+        // Update and prune
+        const next = [];
+        for (const m of meteors) {
+          m.x -= m.vx * dt;  // from top-right down-left
+          m.y += m.vy * dt;
+          m.life += dt;
+          if (m.life < m.maxLife) {
+            next.push(m);
+          }
+        }
+        meteors = next;
+      }
+
+      function renderMeteors() {
+        if (celebrateTime <= 0 || meteors.length === 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 2;
+
+        for (const m of meteors) {
+          const trailX = m.x + m.vx * 0.05;
+          const trailY = m.y - m.vy * 0.05;
+
+          const tNorm = clamp(m.life / m.maxLife, 0, 1);
+          const r = Math.round(255);
+          const gCol = Math.round(200 + 55 * (1 - tNorm));
+          const bCol = Math.round(120 * (1 - tNorm));
+          ctx.strokeStyle = `rgba(${r},${gCol},${bCol},${1 - tNorm * 0.7})`;
+
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(trailX, trailY);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function render() {
+        updatePhaseLabels();
+
+        // Telemetry
+        altitudeEl.textContent = (state.y / 1000).toFixed(3);
+        rangeEl.textContent = (Math.abs(state.x) / 1000).toFixed(3);
+
+        vSpeedEl.textContent = state.vy.toFixed(1);
+        hSpeedEl.textContent = state.vx.toFixed(1);
+        missionTimeEl.textContent = state.time.toFixed(1);
+
+        const fuelPct = (state.fuel / FUEL_MAX) * 100;
+        fuelPctEl.textContent = fuelPct.toFixed(0);
+        fuelBarEl.style.width = clamp(fuelPct, 0, 100) + "%";
+
+        const vDown = Math.max(0, -state.vy);
+        const vNorm = clamp(vDown / 50, 0, 1);
+        vSpeedBarEl.style.width = (vNorm * 100).toFixed(0) + "%";
+
+        const { crashV } = difficultyPresets[difficulty];
+
+        if (vDown > crashV && state.y < 600 && !state.finished) {
+          warningTextEl.textContent = "⚠ TOO FAST";
+        } else if (state.fuel <= 0 && state.y > 0 && !state.finished) {
+          warningTextEl.textContent = "⚠ FUEL DEPLETED";
+        } else if (state.chuteSafe && !state.chuteDeployed && !state.finished) {
+          warningTextEl.textContent = "CHUTE AVAILABLE";
+        } else {
+          warningTextEl.textContent = "";
+        }
+
+        if (!state.finished && state.y > 0) {
+          predictImpact();
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const w = canvas.width / window.devicePixelRatio;
+        const h = canvas.height / window.devicePixelRatio;
+
+        const groundY = h - 26;
+
+        // Atmosphere layers (cosmetic)
+        const layers = [
+          "rgba(90,140,255,0.08)",
+          "rgba(120,110,255,0.08)",
+          "rgba(180,90,200,0.08)",
+          "rgba(255,150,120,0.10)"
+        ];
+        const layerCount = layers.length;
+        for (let i = 0; i < layerCount; i++) {
+          const y0 = (groundY * i) / layerCount;
+          const y1 = (groundY * (i + 1)) / layerCount;
+          ctx.fillStyle = layers[i];
+          ctx.fillRect(0, y0, w, y1 - y0);
+        }
+
+        // Meteor shower (draw over atmosphere, under lander)
+        renderMeteors();
+
+        // Ground
+        ctx.fillStyle = "#151515";
+        ctx.fillRect(0, groundY, w, h - groundY);
+
+        const targetXScreen = w * 0.5;
+        ctx.save();
+        ctx.translate(targetXScreen, groundY);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -18);
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffeb3b";
+        ctx.beginPath();
+        ctx.moveTo(0, -18);
+        ctx.lineTo(14, -14);
+        ctx.lineTo(0, -10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        const scaleX = 0.04;
+        const landerXScreen = targetXScreen + state.x * scaleX;
+
+        const altNorm = clamp(state.y / MAX_SIM_ALT, 0, 1);
+        const landerYScreen = groundY - 10 - altNorm * (groundY - 40);
+
+        // Predicted impact
+        if (state.predictedImpactX !== null && state.y > 0 && !state.finished) {
+          const impactScreenX = targetXScreen + state.predictedImpactX * scaleX;
+          const clampedImpactX = clamp(impactScreenX, 0, w);
+
+          ctx.save();
+          ctx.translate(clampedImpactX, groundY);
+          ctx.strokeStyle = "#ff8a65";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-8, 0);
+          ctx.lineTo(8, 0);
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -10);
+          ctx.stroke();
+
+          ctx.fillStyle = "#ff8a65";
+          ctx.font = "10px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("✕", 0, -12);
+          ctx.restore();
+        }
+
+        // Vertical guide line
+        ctx.save();
+        ctx.strokeStyle = "rgba(55,219,165,0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(landerXScreen, groundY - 10);
+        ctx.lineTo(landerXScreen, landerYScreen);
+        ctx.stroke();
+        ctx.restore();
+
+        // Lander
+        ctx.save();
+        ctx.translate(landerXScreen, landerYScreen);
+
+        const tiltDeg = state.thetaDeg;
+        const tiltRad = (tiltDeg * Math.PI) / 180;
+        ctx.rotate(tiltRad);
+
+        ctx.fillStyle = "#eceff1";
+        ctx.strokeStyle = "#263238";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-6, 8);
+        ctx.lineTo(6, 8);
+        ctx.lineTo(10, -4);
+        ctx.lineTo(0, -14);
+        ctx.lineTo(-10, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#4fc3f7";
+        ctx.beginPath();
+        ctx.arc(0, -7, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "#90a4ae";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(-6, 8);
+        ctx.lineTo(-10, 14);
+        ctx.moveTo(6, 8);
+        ctx.lineTo(10, 14);
+        ctx.stroke();
+
+        const throttle = parseFloat(thrustSlider.value) / 100;
+        if (throttle > 0.02 && !state.finished) {
+          const flameLen = 6 + 10 * throttle;
+          ctx.fillStyle = "#ffb74d";
+          ctx.beginPath();
+          ctx.moveTo(-3, 8);
+          ctx.lineTo(3, 8);
+          ctx.lineTo(0, 8 + flameLen);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        if (state.chuteDeployed && state.y > 200) {
+          ctx.save();
+          ctx.translate(0, -18);
+          ctx.strokeStyle = "#cfd8dc";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -12);
+          ctx.stroke();
+
+          ctx.fillStyle = "#ffcc80";
+          ctx.beginPath();
+          ctx.arc(0, -16, 7, Math.PI, 0);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function showOverlay(title, body) {
+        overlayTitle.textContent = title;
+        overlayBody.textContent = body;
+        overlay.style.display = "flex";
+      }
+
+      function hideOverlay() {
+        overlay.style.display = "none";
+      }
+
+      overlayClose.addEventListener("click", hideOverlay);
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) hideOverlay();
+      });
+
+      // Trim button helper
+      function nudgeSlider(slider, delta) {
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        let v = parseFloat(slider.value);
+        v = clamp(v + delta, min, max);
+        slider.value = v.toString();
+        slider.dispatchEvent(new Event("input"));
+      }
+
+      thrustSlider.addEventListener("input", () => {
+        thrustValueEl.textContent = thrustSlider.value;
+      });
+
+      tiltSlider.addEventListener("input", () => {
+        tiltValueEl.textContent = tiltSlider.value;
+      });
+
+      thrustMinus.addEventListener("click", () => nudgeSlider(thrustSlider, -1));
+      thrustPlus.addEventListener("click", () => nudgeSlider(thrustSlider, +1));
+      tiltMinus.addEventListener("click", () => nudgeSlider(tiltSlider, -1));
+      tiltPlus.addEventListener("click", () => nudgeSlider(tiltSlider, +1));
+
+      startBtn.addEventListener("click", () => {
+        if (!state.playing && !state.finished) {
+          state.playing = true;
+          startBtn.disabled = true;
+          chuteBtn.disabled = false;
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        resetGame();
+      });
+
+      chuteBtn.addEventListener("click", () => {
+        if (!state.chuteDeployed && state.chuteSafe && !state.finished) {
+          state.chuteDeployed = true;
+          chuteBtn.disabled = true;
+        }
+      });
+
+      modeEasyBtn.addEventListener("click", () => setDifficulty("easy"));
+      modeMediumBtn.addEventListener("click", () => setDifficulty("medium"));
+      modeHardBtn.addEventListener("click", () => setDifficulty("hard"));
+
+      // Leaderboard helpers
+      function loadScores() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveScores(list) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      function renderLeaderboard(list) {
+        if (!list || list.length === 0) {
+          leaderboardContent.textContent = "No successful landings yet.";
+          return;
+        }
+        const lines = list.map((entry, idx) => {
+          return (
+            "#" + (idx + 1) +
+            " " + entry.name +
+            " – " + entry.score +
+            " pts" +
+            " (" + difficultyLabel(entry.mode) + ", " +
+            entry.distanceKm + " km, " +
+            entry.timeSec + " s, " +
+            entry.fuelUsedPct + "% fuel)"
+          );
+        });
+        leaderboardContent.textContent = lines.join("\n");
+      }
+
+      let lastTs = null;
+
+      function loop(ts) {
+        if (lastTs == null) lastTs = ts;
+        const dt = (ts - lastTs) / 1000;
+        lastTs = ts;
+
+        const stepSize = 1 / 60;
+        let acc = dt;
+        while (acc > 0) {
+          const d = Math.min(stepSize, acc);
+          step(d);
+          updateMeteors(d);
+          acc -= d;
+        }
+
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
