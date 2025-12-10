@@ -4,9 +4,15 @@
   <meta charset="UTF-8" />
   <title>Mars Descent Controller</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+  <!-- Sci-fi style font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: "Orbitron", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color-scheme: dark;
       --bg: #05070b;
       --panel: #10141f;
@@ -343,6 +349,15 @@
     #overlay button {
       width: 100%;
     }
+
+    /* Leaderboard list */
+    .lb-list {
+      margin: 4px 0 0;
+      padding-left: 18px;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      white-space: normal;
+    }
   </style>
 </head>
 <body>
@@ -583,8 +598,15 @@
 
       async function refreshLeaderboard() {
         leaderboardContent.textContent = "Loading leaderboard...";
-        const list = await fetchLeaderboard();
+        const list = await fetchLeaderboard(10);
         renderLeaderboard(list);
+      }
+
+      function difficultyLabel(mode) {
+        if (mode === "easy") return "Easy";
+        if (mode === "medium") return "Medium";
+        if (mode === "hard") return "Disaster Waiting to Happen";
+        return mode;
       }
 
       function renderLeaderboard(list) {
@@ -592,27 +614,12 @@
           leaderboardContent.textContent = "No successful landings yet.";
           return;
         }
-        const lines = list.map((entry, idx) => {
-          return (
-            "#" +
-            (idx + 1) +
-            " " +
-            entry.name +
-            " – " +
-            entry.score +
-            " pts" +
-            " (" +
-            difficultyLabel(entry.mode) +
-            ", " +
-            entry.distanceKm +
-            " km, " +
-            entry.timeSec +
-            " s, " +
-            entry.fuelUsedPct +
-            "% fuel)"
-          );
+        let html = '<ol class="lb-list">';
+        list.forEach((entry, idx) => {
+          html += `<li><strong>${entry.name}</strong> – ${entry.score} pts<br><span style="font-size:0.75rem;color:var(--muted);">${difficultyLabel(entry.mode)}, ${entry.distanceKm} km, ${entry.timeSec} s, ${entry.fuelUsedPct}% fuel</span></li>`;
         });
-        leaderboardContent.textContent = lines.join("\n");
+        html += "</ol>";
+        leaderboardContent.innerHTML = html;
       }
       // ========================================================
 
@@ -703,13 +710,6 @@
 
       let difficulty = "medium";
 
-      function difficultyLabel(mode) {
-        if (mode === "easy") return "Easy";
-        if (mode === "medium") return "Medium";
-        if (mode === "hard") return "Disaster Waiting to Happen";
-        return mode;
-      }
-
       function setDifficulty(mode) {
         difficulty = mode;
         modeEasyBtn.classList.toggle("active", mode === "easy");
@@ -726,10 +726,16 @@
       let lastScoreData = null;
 
       function createInitialState() {
+        const baseVx = 50;
+        const variability = 0.15; // ±15%
+        const factor = 1 + (Math.random() * 2 - 1) * variability; // 0.85–1.15
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        const initialVx = dir * baseVx * factor;
+
         return {
           x: -900,
           y: 1700,
-          vx: 50,
+          vx: initialVx,
           vy: -85,
           thetaDeg: 0,
           fuel: FUEL_MAX,
@@ -752,6 +758,7 @@
         tiltValueEl.textContent = "0";
 
         startBtn.disabled = false;
+        startBtn.textContent = "Start Mission";
         chuteBtn.disabled = true;
         warningTextEl.textContent = "";
 
@@ -768,8 +775,10 @@
         let phaseLabel = "Idle";
         let dotClass = "entry";
 
-        if (!state.playing && !state.finished) {
+        if (!state.playing && !state.finished && state.time === 0) {
           phaseLabel = "Ready";
+        } else if (!state.playing && !state.finished && state.time > 0) {
+          phaseLabel = "Paused";
         } else if (state.finished && state.crashed) {
           phaseLabel = "Crash";
           dotClass = "crashed";
@@ -942,6 +951,7 @@
 
           startBtn.disabled = true;
           chuteBtn.disabled = true;
+          startBtn.textContent = "Start Mission";
           return;
         }
 
@@ -1023,6 +1033,7 @@
         }
 
         startBtn.disabled = true;
+        startBtn.textContent = "Start Mission";
         chuteBtn.disabled = true;
       }
 
@@ -1402,10 +1413,18 @@
       tiltMinus.addEventListener("click", () => nudgeSlider(tiltSlider, -1));
       tiltPlus.addEventListener("click", () => nudgeSlider(tiltSlider, +1));
 
+      // Start button: start / pause / resume
       startBtn.addEventListener("click", () => {
-        if (!state.playing && !state.finished) {
+        if (state.finished) return; // ignore once mission over
+
+        if (state.playing) {
+          // pause
+          state.playing = false;
+          startBtn.textContent = "Resume";
+        } else {
+          // resume or start fresh
           state.playing = true;
-          startBtn.disabled = true;
+          startBtn.textContent = state.time === 0 ? "Pause" : "Pause";
           chuteBtn.disabled = false;
         }
       });
@@ -1438,7 +1457,6 @@
       const BTN_DPAD_LEFT = 14;
       const BTN_DPAD_RIGHT = 15;
 
-      let prevButtons = [];
       let thrustUpState = { prev: false, hold: 0 };
       let thrustDownState = { prev: false, hold: 0 };
       let tiltLeftState = { prev: false, hold: 0 };
@@ -1478,13 +1496,12 @@
         stateObj.hold += dt;
         const hold = stateObj.hold;
 
-        // Small deadzone before continuous motion
         const threshold = 0.2;
         if (hold <= threshold) return;
 
         const t = hold - threshold;
         const rateBase = isThrust ? 35 : 18; // thrust moves faster than tilt
-        const speed = rateBase * Math.log2(1 + t * 4); // grows over time
+        const speed = rateBase * Math.log2(1 + t * 4);
 
         let val = parseFloat(slider.value);
         val += sign * speed * dt;
@@ -1558,7 +1575,7 @@
         }
         rtPrev = rtPressed;
 
-        // Start = start mission
+        // Start = start / pause / resume
         const startPressed = buttonPressed(gp, BTN_START);
         if (startPressed && !startPrev) {
           startBtn.click();
