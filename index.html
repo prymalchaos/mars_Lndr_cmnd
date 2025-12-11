@@ -610,7 +610,6 @@
   </div>
 
   <script>
-    // All code is in a plain function called on window load to avoid early DOM issues.
     window.addEventListener("load", function () {
       // ---------- SUPABASE CONFIG ----------
       var SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
@@ -818,17 +817,13 @@
       }
 
       function updateStars(dt) {
-  if (!state) return;
+        if (!state) return;
+        // Move stars opposite velocity vector so they look like wallpaper you’re flying past
+        var factor = 0.8; // bumped up for stronger speed sense
+        starScrollX += -state.vx * dt * factor;
+        starScrollY += -state.vy * dt * factor;
+      }
 
-  // Treat stars like a textured wallpaper the ship is flying past.
-  // We bias this so that the visual direction *feels* right with your controls:
-  // when you push "right", the stars flow clearly the other way.
-  var factor = 0.6; // higher = more obvious sense of speed/direction
-
-  // Flip signs so visually the background flows opposite of the *control* direction.
-  starScrollX += state.vx * dt * factor;
-  starScrollY += state.vy * dt * factor;
-}}
       function renderStars() {
         var w = canvas.width / (window.devicePixelRatio || 1);
         var h = canvas.height / (window.devicePixelRatio || 1);
@@ -1410,7 +1405,6 @@
         }
 
         // Off-screen direction arrows: show how to get back over the LZ (pin at x=0)
-        // We check how far the ship is from the LZ in world units and convert to screen.
         var worldToScreen = Math.abs(state.x) * scaleX;
         if (worldToScreen > w * 0.5) {
           ctx.save();
@@ -1603,7 +1597,7 @@
       bindPadButton(dpadRight, tiltRightState);
 
       function handleLogarithmicControl(dt, stateObj, slider, isThrust, sign) {
-        var isPressed = stateObj.touch; // (gamepad could also set a pad flag later)
+        var isPressed = stateObj.touch;
         if (!isPressed) {
           stateObj.prev = false;
           stateObj.hold = 0;
