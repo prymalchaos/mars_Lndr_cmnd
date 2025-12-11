@@ -568,8 +568,7 @@
         <div style="font-size:0.78rem;color:var(--muted);line-height:1.3;">
           • Vertical speed: + = up, − = down.<br />
           • 10% thrust ≈ hover at initial mass.<br />
-          • Chute: huge vertical drag; usable only in a mid-altitude
-          “safe window”.<br />
+          • Chute: big vertical drag; safe only in a mid-altitude window.<br />
           • Land softly and close to the flag for best scores.
         </div>
         <div class="btn-row" style="margin-top:6px;">
@@ -583,13 +582,13 @@
     <!-- Leaderboard -->
     <div id="leaderboardCard" class="card">
       <div class="ctrl-label">
-        <span>Mission Leaderboard</span>
+        <span>Mission Leaderboard (local)</span>
       </div>
       <div
         id="leaderboardContent"
         style="font-size:0.78rem;color:var(--muted);line-height:1.3;margin-top:4px;"
       >
-        Loading leaderboard...
+        No successful landings yet.
       </div>
     </div>
   </div>
@@ -610,12 +609,8 @@
   </div>
 
   <script>
+    // Everything inside onload to avoid DOM timing issues on mobile
     window.addEventListener("load", function () {
-      // ---------- SUPABASE CONFIG ----------
-      var SUPABASE_URL = "https://mzvggshbmlmtxxdozxab.supabase.co";
-      var SUPABASE_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16dmdnc2hibWxtdHh4ZG96eGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMzExNzMsImV4cCI6MjA4MDkwNzE3M30.QUFkj9WoW_fWjFI0EDHQbOKT2EZSpVmiAC-OZuWWgxA";
-      var SUPABASE_TABLE = "scores";
 
       // ---------- DOM REFS ----------
       var altitudeEl   = document.getElementById("altitude");
@@ -662,7 +657,27 @@
       var dpadLeft  = document.getElementById("dpadLeft");
       var dpadRight = document.getElementById("dpadRight");
 
-      // ---------- LEADERBOARD HELPERS ----------
+      // ---------- SIMPLE LOCAL LEADERBOARD ----------
+      var LB_KEY = "mars_lander_scores";
+
+      function loadLocalLeaderboard() {
+        try {
+          var raw = window.localStorage.getItem(LB_KEY);
+          if (!raw) return [];
+          var parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed.length === "undefined") return [];
+          return parsed;
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveLocalLeaderboard(list) {
+        try {
+          window.localStorage.setItem(LB_KEY, JSON.stringify(list));
+        } catch (e) {}
+      }
+
       function difficultyLabel(mode) {
         if (mode === "easy")   return "Easy";
         if (mode === "medium") return "Medium";
@@ -678,79 +693,36 @@
         var html = '<ol class="lb-list">';
         for (var i = 0; i < list.length; i++) {
           var e = list[i];
-          html += '<li><strong>' + e.name + '</strong> – ' + e.score + ' pts<br>' +
-                  '<span style="font-size:0.75rem;color:var(--muted);">' +
-                  difficultyLabel(e.mode) + ", " +
-                  e.distanceKm + " km, " +
-                  e.timeSec + " s, " +
-                  e.fuelUsedPct + "% fuel</span></li>';
+          html +=
+            "<li><strong>" +
+            e.name +
+            "</strong> – " +
+            e.score +
+            " pts<br>" +
+            '<span style="font-size:0.75rem;color:#9ba1bf;">' +
+            difficultyLabel(e.mode) +
+            ", " +
+            e.distanceKm +
+            " km, " +
+            e.timeSec +
+            " s, " +
+            e.fuelUsedPct +
+            "% fuel</span></li>";
         }
         html += "</ol>";
         leaderboardContent.innerHTML = html;
       }
 
-      function fetchLeaderboard(limit) {
-        if (typeof limit === "undefined") limit = 10;
-        leaderboardContent.textContent = "Loading leaderboard...";
-        return fetch(
-          SUPABASE_URL + "/rest/v1/" + SUPABASE_TABLE +
-          "?select=*&order=score.desc&limit=" + limit,
-          {
-            headers: {
-              apikey: SUPABASE_KEY,
-              Authorization: "Bearer " + SUPABASE_KEY
-            }
-          }
-        )
-          .then(function (res) {
-            if (!res.ok) {
-              console.warn("Leaderboard fetch not ok:", res.status);
-              return [];
-            }
-            return res.json();
-          })
-          .then(function (rows) {
-            var list = [];
-            for (var i = 0; i < rows.length; i++) {
-              var r = rows[i];
-              list.push({
-                name: r.name,
-                score: r.score,
-                distanceKm: Number(r.distance_km || 0).toFixed(3),
-                timeSec: Number(r.time_sec   || 0).toFixed(1),
-                fuelUsedPct: Number(r.fuel_used_pct || 0).toFixed(0),
-                mode: r.mode || "unknown"
-              });
-            }
-            renderLeaderboard(list);
-          })
-          .catch(function (err) {
-            console.error("Failed to fetch leaderboard:", err);
-            leaderboardContent.textContent = "Leaderboard unavailable.";
-          });
+      function refreshLeaderboardDisplay() {
+        var list = loadLocalLeaderboard();
+        list.sort(function (a, b) {
+          return b.score - a.score;
+        });
+        if (list.length > 10) list = list.slice(0, 10);
+        renderLeaderboard(list);
       }
 
-      function submitScore(entry) {
-        return fetch(SUPABASE_URL + "/rest/v1/" + SUPABASE_TABLE, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: SUPABASE_KEY,
-            Authorization: "Bearer " + SUPABASE_KEY,
-            Prefer: "return=minimal"
-          },
-          body: JSON.stringify({
-            name: entry.name,
-            score: entry.score,
-            distance_km: entry.distanceKm,
-            time_sec: entry.timeSec,
-            fuel_used_pct: entry.fuelUsedPct,
-            mode: entry.mode
-          })
-        }).catch(function (err) {
-          console.error("Failed to submit score:", err);
-        });
-      }
+      refreshLeaderboardDisplay();
 
       // ---------- CANVAS RESIZE ----------
       function resizeCanvas() {
@@ -792,10 +764,12 @@
 
       function setDifficulty(mode) {
         difficulty = mode;
-        modeEasyBtn.classList.toggle("active",   mode === "easy");
-        modeMediumBtn.classList.toggle("active", mode === "medium");
-        modeHardBtn.classList.toggle("active",   mode === "hard");
+        modeEasyBtn.className   = "mode-btn" + (mode === "easy"   ? " active" : "");
+        modeMediumBtn.className = "mode-btn" + (mode === "medium" ? " active" : "");
+        modeHardBtn.className   = "mode-btn" + (mode === "hard"   ? " active" : "");
       }
+
+      setDifficulty("medium");
 
       // ---------- STARFIELD ----------
       var stars      = [];
@@ -818,8 +792,8 @@
 
       function updateStars(dt) {
         if (!state) return;
-        // Move stars opposite velocity vector so they look like wallpaper you’re flying past
-        var factor = 0.8; // bumped up for stronger speed sense
+        // Stars move opposite your velocity: "wallpaper" you fly past
+        var factor = 0.8;
         starScrollX += -state.vx * dt * factor;
         starScrollY += -state.vy * dt * factor;
       }
@@ -852,7 +826,9 @@
       var lastScoreData = null;
 
       function clamp(v, min, max) {
-        return v < min ? min : (v > max ? max : v);
+        if (v < min) return min;
+        if (v > max) return max;
+        return v;
       }
 
       function createInitialState() {
@@ -897,9 +873,7 @@
         hideOverlay();
       }
 
-      setDifficulty("medium");
       resetGame();
-      fetchLeaderboard(10);
 
       function computeDensity(alt) {
         if (alt <= 0) return 0;
@@ -1009,9 +983,9 @@
         }
       }
 
-      function showOverlay(title, body) {
+      function showOverlay(title, bodyHtml) {
         overlayTitle.textContent = title;
-        overlayBody.textContent  = body;
+        overlayBody.innerHTML  = bodyHtml;
         overlay.style.display = "flex";
       }
 
@@ -1065,7 +1039,7 @@
           reportLines.push("");
           reportLines.push("Score: 0");
 
-          showOverlay("MISSION FAILURE", reportLines.join("\n"));
+          showOverlay("MISSION FAILURE", "<pre style='margin:0;'>" + reportLines.join("\n") + "</pre>");
           startBtn.disabled = true;
           chuteBtn.disabled = true;
           startBtn.textContent = "Start Mission";
@@ -1080,12 +1054,6 @@
         var score = Math.round(base - distancePenalty - timePenalty - fuelPenalty);
         if (score < 0) score = 0;
 
-        var title;
-        if (score > 900)      title = "PERFECT TOUCHDOWN";
-        else if (score > 700) title = "NOMINAL LANDING";
-        else if (score > 450) title = "MARGINAL LANDING";
-        else                  title = "BARELY WALKING AWAY";
-
         lastScoreData = {
           score: score,
           distanceKm: distanceKm.toFixed(3),
@@ -1097,42 +1065,41 @@
         celebrateTime = 10;
         meteors = [];
 
-        overlayTitle.textContent = title;
-        overlayBody.innerHTML =
-          '<div style="margin-bottom:8px;">' +
-          '<div>Score: <strong>' + score + "</strong></div>" +
+        var html =
+          "<div style='margin-bottom:8px;'>" +
+          "<div>Score: <strong>" + score + "</strong></div>" +
           "<div>Distance from pin: " + lastScoreData.distanceKm + " km</div>" +
           "<div>Mission time: " + lastScoreData.timeSec + " s</div>" +
           "<div>Fuel used: " + lastScoreData.fuelUsedPct + "%</div>" +
           "<div>Mode: " + difficultyLabel(lastScoreData.mode) + "</div>" +
           "</div>" +
-          '<div style="margin-top:4px;">' +
-          '<label for="nameInput" style="font-size:0.8rem;display:block;margin-bottom:4px;">Commander name</label>' +
-          '<input id="nameInput" type="text" maxlength="20" placeholder="Type your name" ' +
-          'style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:#f5f7ff;font-size:0.85rem;" />' +
-          '<button id="saveScoreBtn" class="primary" style="margin-top:6px;width:100%;">Save to Leaderboard</button>' +
+          "<div style='margin-top:4px;'>" +
+          "<label for='nameInput' style='font-size:0.8rem;display:block;margin-bottom:4px;'>Commander name</label>" +
+          "<input id='nameInput' type='text' maxlength='20' placeholder='Type your name' " +
+          "style='width:100%;padding:4px 6px;border-radius:4px;border:1px solid #293145;background:#05070b;color:#f5f7ff;font-size:0.85rem;' />" +
+          "<button id='saveScoreBtn' class='primary' style='margin-top:6px;width:100%;'>Save to local leaderboard</button>" +
           "</div>";
 
-        overlay.style.display = "flex";
+        showOverlay("LANDING REPORT", html);
 
         var saveBtn   = document.getElementById("saveScoreBtn");
         var nameInput = document.getElementById("nameInput");
         if (saveBtn && nameInput) {
           saveBtn.addEventListener("click", function () {
-            var name = nameInput.value.trim() || "Anonymous";
-            var data = lastScoreData;
-            submitScore({
+            var name = nameInput.value.replace(/^\s+|\s+$/g, "");
+            if (!name) name = "Anonymous";
+            var list = loadLocalLeaderboard();
+            list.push({
               name: name,
-              score: data.score,
-              distanceKm: data.distanceKm,
-              timeSec: data.timeSec,
-              fuelUsedPct: data.fuelUsedPct,
-              mode: data.mode
-            }).then(function () {
-              return fetchLeaderboard(10);
-            }).finally(function () {
-              hideOverlay();
+              score: lastScoreData.score,
+              distanceKm: lastScoreData.distanceKm,
+              timeSec: lastScoreData.timeSec,
+              fuelUsedPct: lastScoreData.fuelUsedPct,
+              mode: lastScoreData.mode
             });
+            saveLocalLeaderboard(list);
+            refreshLeaderboardDisplay();
+            hideOverlay();
           });
         }
 
@@ -1358,7 +1325,6 @@
         var landerYScreen;
 
         if (inSpace) {
-          // keep ship centred horizontally in space
           landerXScreen = w * 0.5;
           var spaceTop    = 40;
           var spaceBottom = h * 0.7;
@@ -1367,11 +1333,11 @@
           landerYScreen   = spaceBottom - norm * (spaceBottom - spaceTop);
         } else {
           landerXScreen = targetXScreen + state.x * scaleX;
-          var altNorm     = clamp(state.y / MAX_SIM_ALT, 0, 1);
-          landerYScreen   = groundY - 10 - altNorm * (groundY - 40);
+          var altNorm   = clamp(state.y / MAX_SIM_ALT, 0, 1);
+          landerYScreen = groundY - 10 - altNorm * (groundY - 40);
         }
 
-        // predicted impact ✕
+        // predicted impact X
         if (!inSpace && state.predictedImpactX !== null && state.y > 0 && !state.finished) {
           var impactScreenX = targetXScreen + state.predictedImpactX * scaleX;
           var clampedImpactX = clamp(impactScreenX, 0, w);
@@ -1392,7 +1358,7 @@
           ctx.restore();
         }
 
-        // helper vertical from ship to ground (when atmosphere visible)
+        // helper vertical
         if (!inSpace) {
           ctx.save();
           ctx.strokeStyle = "rgba(55,219,165,0.4)";
@@ -1404,19 +1370,16 @@
           ctx.restore();
         }
 
-        // Off-screen direction arrows: show how to get back over the LZ (pin at x=0)
+        // Off-screen arrows pointing back to LZ (x=0)
         var worldToScreen = Math.abs(state.x) * scaleX;
         if (worldToScreen > w * 0.5) {
           ctx.save();
           ctx.fillStyle = "#ffeb3b";
           ctx.font = "14px system-ui";
-
           if (state.x > 0) {
-            // Ship is to the RIGHT of the LZ -> point LEFT to get back
             ctx.textAlign = "right";
             ctx.fillText("◀", w - 6, h - 6);
           } else {
-            // Ship is to the LEFT of the LZ -> point RIGHT to get back
             ctx.textAlign = "left";
             ctx.fillText("▶", 6, h - 6);
           }
@@ -1538,17 +1501,17 @@
       }
 
       function requestFullscreen(elem) {
-        if (elem.requestFullscreen)       elem.requestFullscreen();
+        if (elem.requestFullscreen) elem.requestFullscreen();
         else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-        else if (elem.mozRequestFullScreen)    elem.mozRequestFullScreen();
-        else if (elem.msRequestFullscreen)     elem.msRequestFullscreen();
+        else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen();
+        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
       }
 
       function exitFullscreen() {
-        if (document.exitFullscreen)       document.exitFullscreen();
+        if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        else if (document.mozCancelFullScreen)  document.mozCancelFullScreen();
-        else if (document.msExitFullscreen)     document.msExitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
       }
 
       function updateFsButtonLabel() {
@@ -1571,19 +1534,19 @@
         function setDown(e) {
           e.preventDefault();
           stateObj.touch = true;
-          btn.classList.add("dpad-btn-active");
+          btn.className = btn.className + " dpad-btn-active";
         }
         function setUp(e) {
           e.preventDefault();
           stateObj.touch = false;
-          btn.classList.remove("dpad-btn-active");
+          btn.className = btn.className.replace(" dpad-btn-active", "");
         }
-        ["mousedown", "touchstart"].forEach(function (ev) {
-          btn.addEventListener(ev, setDown);
-        });
-        ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(function (ev) {
-          btn.addEventListener(ev, setUp);
-        });
+        btn.addEventListener("mousedown", setDown, false);
+        btn.addEventListener("touchstart", setDown, false);
+        btn.addEventListener("mouseup", setUp, false);
+        btn.addEventListener("mouseleave", setUp, false);
+        btn.addEventListener("touchend", setUp, false);
+        btn.addEventListener("touchcancel", setUp, false);
       }
 
       var thrustUpState   = { touch: false, prev: false, hold: 0 };
