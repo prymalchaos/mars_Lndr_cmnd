@@ -307,6 +307,18 @@
       text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8);
       flex: 0 0 auto;
+      transition: box-shadow 0.1s linear, border-color 0.1s linear, transform 0.1s linear;
+    }
+
+    .chute-big.ready {
+      box-shadow: 0 0 14px rgba(255, 235, 59, 0.9), 0 0 30px rgba(255, 152, 0, 0.8);
+      border-color: #fff59d;
+      transform: translateY(-1px);
+    }
+
+    .chute-big.active {
+      box-shadow: 0 0 18px rgba(129, 199, 132, 0.95), 0 0 32px rgba(129, 199, 132, 0.8);
+      border-color: #a5d6a7;
     }
 
     .thrust-meter-wrapper {
@@ -504,7 +516,7 @@
 
     <!-- Controls -->
     <div id="controls">
-      <!-- Start / Reset / Fullscreen -->
+      <!-- Start / Reset -->
       <div class="ctrl-group">
         <div class="ctrl-label">
           <span>Mission Control</span>
@@ -512,11 +524,10 @@
         <div class="btn-row">
           <button id="startBtn" class="primary">Start Mission</button>
           <button id="resetBtn">Reset</button>
-          <button id="fsBtn">Fullscreen</button>
         </div>
       </div>
 
-      <!-- D-pad + chute + LED meters -->
+      <!-- D-pad + fins + LED meters -->
       <div class="ctrl-group" id="padPanel">
         <div class="tilt-meter-row">
           <div class="tele-label">Tilt</div>
@@ -547,7 +558,7 @@
           </div>
 
           <div class="pad-right">
-            <button id="chuteBtn" class="chute-big">CHUTE</button>
+            <button id="chuteBtn" class="chute-big">FINS</button>
             <div class="thrust-meter-wrapper">
               <div class="tele-label" style="text-align:center;">
                 Thrust: <span id="thrustTextAbove">0%</span>
@@ -568,7 +579,7 @@
         <div style="font-size:0.78rem;color:var(--muted);line-height:1.3;">
           • Vertical speed: + = up, − = down.<br />
           • 10% thrust ≈ hover at initial mass.<br />
-          • Chute: big vertical drag; safe only in a mid-altitude window.<br />
+          • Drag fins: atmospheric drag surfaces; most effective in descent, disengage under thrust.<br />
           • Land softly and close to the flag for best scores.
         </div>
         <div class="btn-row" style="margin-top:6px;">
@@ -633,7 +644,6 @@
 
       var startBtn     = document.getElementById("startBtn");
       var resetBtn     = document.getElementById("resetBtn");
-      var fsBtn        = document.getElementById("fsBtn");
       var chuteBtn     = document.getElementById("chuteBtn");
 
       var modeEasyBtn   = document.getElementById("modeEasy");
@@ -830,8 +840,8 @@
 
       function updateStars(dt) {
         if (!state) return;
-        // Horizontal: opposite velocity (you fly right, stars flow left)
-        // Vertical: inverted + stronger for clearer ascent/descent cue
+        // Horizontal: opposite velocity
+        // Vertical: inverted + stronger for clear sense of ascent/descent
         var factor = 0.8;
         starScrollX += -state.vx * dt * factor;
         starScrollY += state.vy * dt * factor * 2.0;
@@ -884,8 +894,8 @@
           vy: -85,
           thetaDeg: 0,
           fuel: FUEL_MAX,
-          chuteDeployed: false,
-          chuteSafe: false,
+          finsDeployed: false,
+          finsReady: false,
           time: 0,
           playing: false,
           finished: false,
@@ -902,7 +912,7 @@
 
         startBtn.disabled = false;
         startBtn.textContent = "Start Mission";
-        chuteBtn.disabled = true;
+        chuteBtn.disabled = false;
         warningTextEl.textContent = "";
 
         celebrateTime = 0;
@@ -939,8 +949,8 @@
           if (alt > 1200) {
             phaseLabel = "Entry";
             dotClass   = "entry";
-          } else if (state.chuteDeployed) {
-            phaseLabel = "Chute";
+          } else if (state.finsDeployed) {
+            phaseLabel = "Fins";
             dotClass   = "chute";
           } else if (alt > 400) {
             phaseLabel = "Powered Descent";
@@ -969,7 +979,16 @@
         var alt      = state.y;
         var vDownMag = Math.max(0, -state.vy);
 
-        state.chuteSafe = alt > 900 && alt < 1800 && vDownMag > 20 && vDownMag < 200;
+        // Drag fins: "ready" when descending with low thrust in a mid-altitude window
+        state.finsReady =
+          alt > 900 && alt < 1800 &&
+          vDownMag > 10 &&
+          throttle < 0.05;
+
+        // Fins auto-disengage under thrust
+        if (throttle > 0.05 && state.finsDeployed) {
+          state.finsDeployed = false;
+        }
 
         var mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
 
@@ -984,9 +1003,10 @@
           a_drag_y = (-0.5 * rho * CdA * state.vy * Math.abs(state.vy)) / mass;
         }
 
-        if (state.chuteDeployed && mass > 0) {
-          var chuteCdA = 18;
-          a_drag_y += (-0.5 * rho * chuteCdA * state.vy * Math.abs(state.vy)) / mass;
+        // Extra drag from fins
+        if (state.finsDeployed && mass > 0) {
+          var finsCdA = 10;
+          a_drag_y += (-0.5 * rho * finsCdA * state.vy * Math.abs(state.vy)) / mass;
         }
 
         var a_thrust_y = THRUST_ACCEL_FACTOR * throttle * Math.cos(thetaRad);
@@ -1084,7 +1104,6 @@
             "<pre style='margin:0;'>" + reportLines.join("\n") + "</pre>"
           );
           startBtn.disabled = true;
-          chuteBtn.disabled = true;
           startBtn.textContent = "Start Mission";
           return;
         }
@@ -1157,7 +1176,6 @@
 
         startBtn.disabled = true;
         startBtn.textContent = "Start Mission";
-        chuteBtn.disabled = true;
       }
 
       function predictImpact() {
@@ -1165,7 +1183,7 @@
         var y = state.y;
         var vx = state.vx;
         var vy = state.vy;
-        var chute = state.chuteDeployed;
+        var fins = state.finsDeployed;
         var t = 0;
         var dt = 0.1;
         var maxT = 120;
@@ -1181,9 +1199,9 @@
             a_drag_x = (-0.5 * rho * CdA * vx * Math.abs(vx)) / mass;
             a_drag_y = (-0.5 * rho * CdA * vy * Math.abs(vy)) / mass;
           }
-          if (chute && mass > 0) {
-            var chuteCdA = 18;
-            a_drag_y += (-0.5 * rho * chuteCdA * vy * Math.abs(vy)) / mass;
+          if (fins && mass > 0) {
+            var finsCdA = 10;
+            a_drag_y += (-0.5 * rho * finsCdA * vy * Math.abs(vy)) / mass;
           }
           var a_grav_y = -G;
 
@@ -1230,37 +1248,6 @@
         meteors = next;
       }
 
-      function renderMeteors() {
-        if (celebrateTime <= 0 || meteors.length === 0) return;
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.lineWidth   = 2;
-        for (var i = 0; i < meteors.length; i++) {
-          var m = meteors[i];
-          var trailX = m.x + m.vx * 0.05;
-          var trailY = m.y - m.vy * 0.05;
-          var tNorm = clamp(m.life / m.maxLife, 0, 1);
-          var r = 255;
-          var gCol = Math.round(200 + 55 * (1 - tNorm));
-          var bCol = Math.round(120 * (1 - tNorm));
-          ctx.strokeStyle =
-            "rgba(" +
-            r +
-            "," +
-            gCol +
-            "," +
-            bCol +
-            "," +
-            (1 - tNorm * 0.7) +
-            ")";
-          ctx.beginPath();
-          ctx.moveTo(m.x, m.y);
-          ctx.lineTo(trailX, trailY);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
       function render() {
         updatePhaseLabels();
 
@@ -1286,8 +1273,8 @@
           warningTextEl.textContent = "⚠ TOO FAST";
         } else if (state.fuel <= 0 && state.y > 0 && !state.finished) {
           warningTextEl.textContent = "⚠ FUEL DEPLETED";
-        } else if (state.chuteSafe && !state.chuteDeployed && !state.finished) {
-          warningTextEl.textContent = "CHUTE AVAILABLE";
+        } else if (state.finsReady && !state.finished) {
+          warningTextEl.textContent = "FINS READY";
         } else {
           warningTextEl.textContent = "";
         }
@@ -1323,6 +1310,12 @@
         tiltMeterFill.style.background = tiltColor;
         tiltMeterFill.style.boxShadow  = "0 0 12px " + tiltColor;
         tiltMeterText.textContent      = tiltDeg.toFixed(0) + "°";
+
+        // Fins button "light up" state
+        var chuteClass = "chute-big";
+        if (state.finsReady && !state.finished) chuteClass += " ready";
+        if (state.finsDeployed && !state.finished) chuteClass += " active";
+        chuteBtn.className = chuteClass;
 
         if (!state.finished && state.y > 0) {
           predictImpact();
@@ -1533,19 +1526,22 @@
           ctx.fill();
         }
 
-        if (state.chuteDeployed && state.y > 200) {
+        // Drag fins visual
+        if (state.finsDeployed && state.y > 200) {
           ctx.save();
-          ctx.translate(0, -18);
-          ctx.strokeStyle = "#cfd8dc";
-          ctx.lineWidth   = 1;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(0, -12);
-          ctx.stroke();
-
           ctx.fillStyle = "#ffcc80";
           ctx.beginPath();
-          ctx.arc(0, -16, 7, Math.PI, 0);
+          ctx.moveTo(-9, -6);
+          ctx.lineTo(-18, -1);
+          ctx.lineTo(-9, -1);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(9, -6);
+          ctx.lineTo(18, -1);
+          ctx.lineTo(9, -1);
+          ctx.closePath();
           ctx.fill();
           ctx.restore();
         }
@@ -1553,55 +1549,18 @@
         ctx.restore();
       }
 
-      // ---------- FULLSCREEN ----------
-      function isFullscreen() {
-        return document.fullscreenElement ||
-               document.webkitFullscreenElement ||
-               document.mozFullScreenElement ||
-               document.msFullscreenElement;
-      }
-
-      function requestFullscreen(elem) {
-        if (elem.requestFullscreen) elem.requestFullscreen();
-        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-        else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen();
-        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-      }
-
-      function exitFullscreen() {
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-        else if (document.msExitFullscreen) document.msExitFullscreen();
-      }
-
-      function updateFsButtonLabel() {
-        fsBtn.textContent = isFullscreen() ? "Windowed" : "Fullscreen";
-      }
-
-      fsBtn.addEventListener("click", function () {
-        if (isFullscreen()) exitFullscreen();
-        else requestFullscreen(document.documentElement);
-      });
-
-      document.addEventListener("fullscreenchange",       updateFsButtonLabel);
-      document.addEventListener("webkitfullscreenchange", updateFsButtonLabel);
-      document.addEventListener("mozfullscreenchange",    updateFsButtonLabel);
-      document.addEventListener("MSFullscreenChange",     updateFsButtonLabel);
-      updateFsButtonLabel();
-
-      // ---------- D-PAD / TOUCH STATES ----------
+      // ---------- D-PAD / TOUCH + GAMEPAD STATES ----------
       function bindPadButton(btn, stateObj) {
         function setDown(e) {
           e.preventDefault();
-          stateObj.touch = true;
+          stateObj.touchActive = true;
           if (btn.className.indexOf("dpad-btn-active") === -1) {
             btn.className += " dpad-btn-active";
           }
         }
         function setUp(e) {
           e.preventDefault();
-          stateObj.touch = false;
+          stateObj.touchActive = false;
           btn.className = btn.className.replace(" dpad-btn-active", "");
         }
         btn.addEventListener("mousedown", setDown, false);
@@ -1612,10 +1571,10 @@
         btn.addEventListener("touchcancel", setUp, false);
       }
 
-      var thrustUpState   = { touch: false, prev: false, hold: 0 };
-      var thrustDownState = { touch: false, prev: false, hold: 0 };
-      var tiltLeftState   = { touch: false, prev: false, hold: 0 };
-      var tiltRightState  = { touch: false, prev: false, hold: 0 };
+      var thrustUpState   = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
+      var thrustDownState = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
+      var tiltLeftState   = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
+      var tiltRightState  = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
 
       bindPadButton(dpadUp,    thrustUpState);
       bindPadButton(dpadDown,  thrustDownState);
@@ -1623,7 +1582,7 @@
       bindPadButton(dpadRight, tiltRightState);
 
       function handleLogarithmicControl(dt, stateObj, slider, isThrust, sign) {
-        var isPressed = stateObj.touch;
+        var isPressed = stateObj.active;
         if (!isPressed) {
           stateObj.prev = false;
           stateObj.hold = 0;
@@ -1655,10 +1614,80 @@
       }
 
       function updateControlRamps(dt) {
+        thrustUpState.active   = thrustUpState.touchActive   || thrustUpState.padActive;
+        thrustDownState.active = thrustDownState.touchActive || thrustDownState.padActive;
+        tiltLeftState.active   = tiltLeftState.touchActive   || tiltLeftState.padActive;
+        tiltRightState.active  = tiltRightState.touchActive  || tiltRightState.padActive;
+
         handleLogarithmicControl(dt, thrustUpState,   thrustSlider, true,  +1);
         handleLogarithmicControl(dt, thrustDownState, thrustSlider, true,  -1);
         handleLogarithmicControl(dt, tiltLeftState,   tiltSlider,   false, -1);
         handleLogarithmicControl(dt, tiltRightState,  tiltSlider,   false, +1);
+      }
+
+      // ---------- GAMEPAD SUPPORT ----------
+      var gpPrevStart  = false;
+      var gpPrevSelect = false;
+      var gpPrevFins   = false;
+
+      function updateGamepadStates() {
+        thrustUpState.padActive   = false;
+        thrustDownState.padActive = false;
+        tiltLeftState.padActive   = false;
+        tiltRightState.padActive  = false;
+
+        var getGamepads =
+          navigator.getGamepads ||
+          navigator.webkitGetGamepads ||
+          navigator.mozGetGamepads ||
+          navigator.msGetGamepads;
+
+        if (!getGamepads) return;
+
+        var pads = getGamepads.call(navigator) || [];
+        var gp = null;
+        for (var i = 0; i < pads.length; i++) {
+          if (pads[i]) {
+            gp = pads[i];
+            break;
+          }
+        }
+        if (!gp) return;
+
+        var b = gp.buttons || [];
+
+        function isPressed(ix) {
+          if (!b[ix]) return false;
+          return b[ix].pressed || (typeof b[ix].value === "number" && b[ix].value > 0.3);
+        }
+
+        var upPressed    = isPressed(12) || isPressed(3);  // D-pad up or Y
+        var downPressed  = isPressed(13) || isPressed(0);  // D-pad down or A
+        var leftPressed  = isPressed(14) || isPressed(2);  // D-pad left or X
+        var rightPressed = isPressed(15) || isPressed(1);  // D-pad right or B
+
+        thrustUpState.padActive   = upPressed;
+        thrustDownState.padActive = downPressed;
+        tiltLeftState.padActive   = leftPressed;
+        tiltRightState.padActive  = rightPressed;
+
+        var startPressed  = isPressed(9);  // Start / Options
+        var selectPressed = isPressed(8);  // Back / Select
+        var finsPressed   = isPressed(7);  // RT trigger
+
+        if (startPressed && !gpPrevStart) {
+          startBtn.click();
+        }
+        if (selectPressed && !gpPrevSelect) {
+          resetBtn.click();
+        }
+        if (finsPressed && !gpPrevFins) {
+          chuteBtn.click();
+        }
+
+        gpPrevStart  = startPressed;
+        gpPrevSelect = selectPressed;
+        gpPrevFins   = finsPressed;
       }
 
       // ---------- BUTTON HANDLERS ----------
@@ -1670,7 +1699,6 @@
         } else {
           state.playing = true;
           startBtn.textContent = "Pause";
-          chuteBtn.disabled = false;
         }
       });
 
@@ -1679,9 +1707,9 @@
       });
 
       chuteBtn.addEventListener("click", function () {
-        if (!state.chuteDeployed && state.chuteSafe && !state.finished) {
-          state.chuteDeployed = true;
-          chuteBtn.disabled = true;
+        if (state.finished) return;
+        if (state.finsReady) {
+          state.finsDeployed = !state.finsDeployed;
         }
       });
 
@@ -1696,6 +1724,8 @@
         if (lastTs === null) lastTs = timestamp;
         var dt = (timestamp - lastTs) / 1000;
         lastTs = timestamp;
+
+        updateGamepadStates();
 
         var stepSize = 1 / 60;
         var acc = dt;
