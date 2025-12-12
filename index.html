@@ -1074,7 +1074,7 @@
 
         if (crashed) {
           var reportLines = [];
-          reportLines.push("Vertical speed: " + vy.toFixed(1) + " m/s ( + = up, − = down )");
+          reportLines.push("Vertical speed: " + vy.toFixed(1) + " m/s");
           reportLines.push("Ground speed: "   + vx.toFixed(1) + " m/s");
           reportLines.push("Distance from target: " + distanceKm.toFixed(3) + " km");
           reportLines.push("Fuel remaining: " + fuelPctRemaining.toFixed(0) + "%");
@@ -1172,8 +1172,8 @@
         var maxT = 120;
 
         while (y > 0 && t < maxT) {
-          var rho = computeDensity(y);
-          var CdA = 2.0;
+          var rho  = computeDensity(y);
+          var CdA  = 2.0;
           var mass = DRY_MASS + state.fuel * FUEL_UNIT_MASS;
 
           var a_drag_x = 0;
@@ -1563,18 +1563,18 @@
         ctx.restore();
       }
 
-      // ---------- D-pad touch controls ----------
+      // ---------- D-pad touch + combined state ----------
       function bindPadButton(btn, stateObj) {
         function down(e) {
           e.preventDefault();
-          stateObj.active = true;
+          stateObj.touchActive = true;
           if (btn.className.indexOf("dpad-btn-active") === -1) {
             btn.className += " dpad-btn-active";
           }
         }
         function up(e) {
           e.preventDefault();
-          stateObj.active = false;
+          stateObj.touchActive = false;
           btn.className = btn.className.replace(" dpad-btn-active", "");
         }
         btn.addEventListener("mousedown", down, false);
@@ -1585,10 +1585,10 @@
         btn.addEventListener("touchcancel", up, false);
       }
 
-      var thrustUpState   = { active:false, prev:false, hold:0 };
-      var thrustDownState = { active:false, prev:false, hold:0 };
-      var tiltLeftState   = { active:false, prev:false, hold:0 };
-      var tiltRightState  = { active:false, prev:false, hold:0 };
+      var thrustUpState   = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
+      var thrustDownState = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
+      var tiltLeftState   = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
+      var tiltRightState  = { touchActive:false, padActive:false, active:false, prev:false, hold:0 };
 
       bindPadButton(dpadUp,    thrustUpState);
       bindPadButton(dpadDown,  thrustDownState);
@@ -1625,10 +1625,81 @@
       }
 
       function updateControlRamps(dt) {
+        thrustUpState.active   = thrustUpState.touchActive   || thrustUpState.padActive;
+        thrustDownState.active = thrustDownState.touchActive || thrustDownState.padActive;
+        tiltLeftState.active   = tiltLeftState.touchActive   || tiltLeftState.padActive;
+        tiltRightState.active  = tiltRightState.touchActive  || tiltRightState.padActive;
+
         handleLogarithmicControl(dt, thrustUpState,   thrustSlider, true,  +1);
         handleLogarithmicControl(dt, thrustDownState, thrustSlider, true,  -1);
         handleLogarithmicControl(dt, tiltLeftState,   tiltSlider,   false, -1);
         handleLogarithmicControl(dt, tiltRightState,  tiltSlider,   false, +1);
+      }
+
+      // ---------- Gamepad support ----------
+      var gpPrevStart  = false;
+      var gpPrevSelect = false;
+      var gpPrevFins   = false;
+
+      function updateGamepadStates() {
+        thrustUpState.padActive   = false;
+        thrustDownState.padActive = false;
+        tiltLeftState.padActive   = false;
+        tiltRightState.padActive  = false;
+
+        var getGamepads =
+          navigator.getGamepads ||
+          navigator.webkitGetGamepads ||
+          navigator.mozGetGamepads ||
+          navigator.msGetGamepads;
+
+        if (!getGamepads) return;
+
+        var pads = getGamepads.call(navigator) || [];
+        var gp = null;
+        for (var i = 0; i < pads.length; i++) {
+          if (pads[i]) {
+            gp = pads[i];
+            break;
+          }
+        }
+        if (!gp) return;
+
+        var b = gp.buttons || [];
+
+        function isPressed(ix) {
+          if (!b[ix]) return false;
+          return b[ix].pressed || (typeof b[ix].value === "number" && b[ix].value > 0.3);
+        }
+
+        // D-pad + face buttons
+        var upPressed    = isPressed(12) || isPressed(3);  // D-pad up or Y
+        var downPressed  = isPressed(13) || isPressed(0);  // D-pad down or A
+        var leftPressed  = isPressed(14) || isPressed(2);  // D-pad left or X
+        var rightPressed = isPressed(15) || isPressed(1);  // D-pad right or B
+
+        thrustUpState.padActive   = upPressed;
+        thrustDownState.padActive = downPressed;
+        tiltLeftState.padActive   = leftPressed;
+        tiltRightState.padActive  = rightPressed;
+
+        var startPressed  = isPressed(9);  // Start / Options
+        var selectPressed = isPressed(8);  // Back / Select
+        var finsPressed   = isPressed(7);  // RT
+
+        if (startPressed && !gpPrevStart) {
+          startBtn.click();
+        }
+        if (selectPressed && !gpPrevSelect) {
+          resetBtn.click();
+        }
+        if (finsPressed && !gpPrevFins) {
+          finsBtn.click();
+        }
+
+        gpPrevStart  = startPressed;
+        gpPrevSelect = selectPressed;
+        gpPrevFins   = finsPressed;
       }
 
       // ---------- Button handlers ----------
@@ -1664,6 +1735,8 @@
         if (lastTs === null) lastTs = ts;
         var dt = (ts - lastTs) / 1000;
         lastTs = ts;
+
+        updateGamepadStates();
 
         var stepSize = 1 / 60;
         var acc = dt;
